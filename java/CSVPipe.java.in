@@ -1,0 +1,1450 @@
+package org.smallfoot.csv;
+
+/**
+ * @file
+ */
+
+//import org.apache.http.HttpResponse;
+//import org.apache.http.client.HttpClient;
+//import org.apache.http.client.methods.HttpPost;
+//import org.apache.http.conn.ClientConnectionManager;
+//import org.apache.http.conn.scheme.Scheme;
+//import org.apache.http.conn.scheme.SchemeRegistry;
+//import org.apache.http.conn.ssl.SSLSocketFactory;
+//import org.apache.http.entity.StringEntity;
+//import org.apache.http.impl.client.DefaultHttpClient;
+//import org.w3c.dom.Document;
+//import org.w3c.dom.Element;
+//import org.w3c.dom.NodeList;
+
+//import javax.net.ssl.KeyManager;
+//import javax.net.ssl.SSLContext;
+//import javax.net.ssl.TrustManager;
+//import javax.net.ssl.X509TrustManager;
+//import javax.xml.parsers.DocumentBuilder;
+//import javax.xml.parsers.DocumentBuilderFactory;
+//import javax.xml.transform.OutputKeys;
+//import javax.xml.transform.Transformer;
+//import javax.xml.transform.TransformerFactory;
+//import javax.xml.transform.dom.DOMSource;
+//import javax.xml.transform.stream.StreamResult;
+//import javax.xml.XMLConstants;
+//import javax.xml.namespace.QName;
+//import javax.xml.xpath.XPath;
+//import javax.xml.xpath.XPathExpression;
+//import javax.xml.xpath.XPathFactory;
+//import java.io.StringWriter;
+//import java.security.SecureRandom;
+//import java.security.cert.CertificateException;
+//import java.security.cert.X509Certificate;
+
+import java.io.FileOutputStream;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.CreationHelper;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.*;
+import org.apache.poi.ss.usermodel.*;
+
+import javax.activation.DataSource;
+import javax.activation.URLDataSource;
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.util.Vector;
+//import java.util.Calendar;
+//import java.util.Vector;
+import gnu.getopt.Getopt;
+import gnu.getopt.LongOpt;
+
+
+
+public class CSVPipe
+{
+    public static String TF_VI = "%04d-%02d-%02d-%02d-%02d";		/**< the nearly-ISO8601 timestamp format for VI */
+    public static String TF_ISO = "%04d-%02d-%02dT%02d:%02d:%02d";	/**< what a real ISO8601 looks like */
+    public static String TF_3339 = "%04d-%02d-%02d %02d:%02d:%02d";	/**< what a modified XML5/RFC-3339 timestamp looks like */
+
+
+
+
+    /**
+     * rowPrinter is a way to pop in a singleton representing the format of a printer
+     *
+     * if unset, the singleton request results in the default, a CSV printer.  Additional may
+     * be assigned in the descendent classes.
+     *
+     * In my defense, this was originally done because the output path involved arrays of strings:
+     * by altering the strings, one can easily insert additional columns or munge them on the way past.
+     *
+     * The resulting Stringly-typed code (no, not a typo) in these RowPrinter descendents were
+     * a case of shimming on additional (bag-on-the-side?) adapters to get it one-step-further.
+     * The result may well be a true Stringly-typed, but it got me across the bridge this time.
+     *
+     * I'd like to suggest that the maintenance burden this adds is similar to the maintenance
+     * burden of trying to give "good" CSV, where "good" is a moving definition (start by trying
+     * all four line-endings starting with #13#10 and #10, and add spaces where your test data
+     * didn't originally have it, plus a few double-quotes, and now you're starting to test the
+     * N! of the CSV issue).  I should have moved back into the XML space from the start, and
+     * looked at re-using the transforms I already use.
+     */
+    abstract protected class RowPrinter
+    {
+        abstract public void printHeaderRow (String[] columns);
+        abstract public void printDataRow (String[] columns);
+        abstract public void printFooterRow ();
+
+        java.util.Properties _prop = null;
+        boolean checkProperty(String n)
+        {
+            if (null == _prop) _prop = System.getProperties();
+            //return ( (null != _prop.getProperty(n)) && (false != Boolean.parseBoolean(_prop.getProperty(n))) );
+            return (
+                       Boolean.parseBoolean(_prop.getProperty(n))
+                       || (getClass().getName().equalsIgnoreCase(_prop.getProperty(n)))
+                       || (getClass().getName().replaceAll("^.*\\.","").equalsIgnoreCase(_prop.getProperty(n)))
+                   );
+        }
+    };
+
+    /**
+     * CsvRowPrinter is the default method of printing: just spit it out
+     */
+    protected class CsvRowPrinter extends RowPrinter
+    {
+        public void printHeaderRow (String[] data)
+        {
+            printDataRow(data);
+        }
+
+        public void printDataRow (String[] data)
+        {
+            if (true == checkProperty("debug.RowPrintIn"))
+            {
+                for (String s: data) System.out.print(s+", ");
+                System.out.println("from upstream (CSV)");
+            }
+            for(int i=0; i<data.length; i++)
+            {
+                System.out.print(data[i]);
+                if(i < data.length - 1)
+                    System.out.print(",");
+            }
+            System.out.println();
+        }
+        public void printFooterRow () {};
+    };
+
+    /**
+     * DocRowPrinter is a basic pass-thru to a Word Doc page
+     */
+    protected class DocSheetRowPrinter extends RowPrinter
+    {
+        //Sheet summary;
+        CellStyle styleHeader;
+        CellStyle styleBody;
+        //CellStyle styleUnknown;
+        //CellStyle styleOK;
+        //CellStyle styleAmber;
+        //CellStyle styleRed;
+        //int row = 0;
+        //FileOutputStream out;
+        //java.util.HashMap<RAG, CellStyle> styles;
+
+        /** singleton: workbook */
+        private CreationHelper _ch = null;
+        /** singleton: workbook */
+        protected CreationHelper getCreationHelper()
+        {
+            if (null == _ch) _ch = target.getWorkbook().getCreationHelper();
+            return _ch;
+        }
+
+
+        int row;
+        short coloffset;
+        Sheet target;
+
+        public DocSheetRowPrinter (Sheet target)
+        {
+            this (target, 0, 0);
+        }
+        public DocSheetRowPrinter (Sheet target, int rowoffset, int coloffset)
+        {
+            this.target = target;
+            this.row = rowoffset;
+            this.coloffset = (short) coloffset;
+
+            styleBody = target.getWorkbook().createCellStyle();
+            //styleBody.setBorderRight(CellStyle.BORDER_THIN);
+            //styleBody.setBorderBottom(CellStyle.BORDER_THIN);
+            //styleBody.setBorderLeft(CellStyle.BORDER_THIN);
+            //styleBody.setBorderTop(CellStyle.BORDER_THIN);
+            styleBody.setVerticalAlignment(CellStyle.VERTICAL_CENTER);
+
+            styleHeader = target.getWorkbook().createCellStyle();
+            styleHeader.cloneStyleFrom(styleBody);
+            styleHeader.setAlignment(CellStyle.ALIGN_CENTER);
+        };
+
+        /**
+         * createTextCell
+         */
+        Cell createTextCell(Row row, CreationHelper ch, short col, String text, CellStyle cellStyle)
+        {
+            Cell c = row.createCell(col, Cell.CELL_TYPE_STRING);
+            if (null != text) c.setCellValue(ch.createRichTextString(text));
+            c.setCellStyle(cellStyle);
+
+            return c;
+        }
+
+        /**
+         * createFloatCell
+         */
+        Cell createTextCell(Row row, CreationHelper ch, short col, float num, CellStyle cellStyle)
+        {
+            Cell c = row.createCell(col, Cell.CELL_TYPE_NUMERIC);
+            c.setCellValue(num);
+            c.setCellStyle(cellStyle);
+
+            return c;
+        }
+
+        public void printHeaderRow (String[] data)
+        {
+            printRowCS(data, styleHeader);
+        }
+        public void printDataRow (String[] data)
+        {
+            printRowCS(data, styleBody);
+        }
+
+        public void printRowCS (String[] data, CellStyle cs)
+        {
+            if (true == checkProperty("debug.RowPrintIn"))
+            {
+                for (String s: data) System.out.print(s+", ");
+                System.out.println("from upstream (CSV)");
+            }
+
+            Row r = target.createRow(row++);
+            for (short i = 0; i < data.length; i++)
+                createTextCell(r, getCreationHelper(), (short) (i + coloffset), data[i], cs);
+        }
+
+        public void printFooterRow ()
+        {
+        }
+    };
+
+    /**
+     * LimitedIntervalsRowPrinter is a basic pass-thru but shunts further passes after a certain number have gone through
+     */
+    protected class LimitedIntervalsRowPrinter extends RowPrinter
+    {
+        protected RowPrinter parent;
+        protected int maxIntervals = Integer.MAX_VALUE;
+
+        public LimitedIntervalsRowPrinter (RowPrinter aParent)
+        {
+            if (null == aParent) parent = new CsvRowPrinter();    // yes, covering the case of calling it with a null value
+            else parent = aParent;
+        }
+        public LimitedIntervalsRowPrinter (RowPrinter aParent, int maxint)
+        {
+            if (null == aParent) parent = new CsvRowPrinter();
+            else parent = aParent;
+            maxIntervals = maxint;
+        }
+
+        public void printHeaderRow (String[] data)
+        {
+            parent.printHeaderRow(data);
+        }
+
+        public void printDataRow (String[] data)
+        {
+            if (true == checkProperty("debug.RowPrintIn"))
+            {
+                for (String s: data) System.out.print(s+", ");
+                System.out.println(" from upstream (LIRP)");
+            }
+
+            if (true == checkProperty("debug.RowPrintOut"))
+            {
+                System.out.print("maxIntervals is " + maxIntervals + " therefore " + ((maxIntervals > 0) ? "" : "not ") + "sending ");
+                for (String s: data) System.out.print(s+", ");
+                System.out.println(" to downstream (LIRP)");
+            }
+            if (maxIntervals-- >= 0)
+            {
+                parent.printDataRow(data);
+            }
+        }
+
+        public void printFooterRow ()
+        {
+            parent.printFooterRow();
+        }
+    };
+
+    /**
+     *
+     */
+    protected abstract class _MergingRowPrinter extends RowPrinter
+    {
+        protected RowPrinter parent;
+        Vector<Boolean> merge = null;
+        Vector<Boolean> merge()
+        {
+            if (null == merge) merge = new Vector<Boolean>(1,1);
+            return merge;
+        };
+        Vector<String> work;	/**< until the first merged data row, work contains indices of merged headers that don't parse as array indices -- if it's not a numbe, it's a future column name */
+        int firstMerge = -1;
+
+        public _MergingRowPrinter ()
+        {
+            this(new CsvRowPrinter());
+        }
+        public _MergingRowPrinter (RowPrinter aParent)
+        {
+            if (null == aParent) parent = new CsvRowPrinter();    // yes, covering the case of calling it with a null value
+            else parent = aParent;
+            merge = new Vector<Boolean>(12,1);
+        }
+
+        protected void set(int index, boolean aMerge)
+        {
+            if (index >= merge.size()) merge.setSize(index+1);
+            merge.set(index, aMerge);
+        }
+        protected void set(String index, boolean aMerge)
+        {
+            try
+            {
+                Integer x = new Integer(index);
+                set (x, aMerge);
+            }
+            catch (Exception e)
+            {
+                if (null == work) work = new Vector<String>();
+                work.add(index);
+            }
+        }
+        protected int outputColumnCount()
+        {
+            int res = 1;
+            for (int i = 0; i < merge.size(); i++) if (isMerge(i)) res++;
+            return res;
+        }
+        protected boolean isMerge(int index)
+        {
+            if (null == merge.get(index))
+                return false;
+            boolean res = merge.get(index);
+            return res;
+        }
+
+        /** set the columns for merging.  Convenience function. @param cols column numbers to merge (first column is #0) */
+        protected void mergeKeys(String[] cols)
+        {
+            for (String m: cols) set(m, true);
+        }
+
+        public void printHeaderRow (String[] data)
+        {
+            merge.setSize(data.length);
+
+            if (-1 == firstMerge)
+            {
+                firstMerge = -2;
+                if (null != work)
+                    for (int i = data.length-1; i >= 0; i--)
+                        if (work.contains(data[i]))
+                            merge.set(i, true);
+                for (int i = merge.size()-1; i >= 0; i--)
+                    if (true == isMerge(i))
+                    {
+//System.out.println("Column " + i + " is now first");
+                        firstMerge = i;
+                    }
+            }
+        }
+
+        abstract protected String[] trim (String[] data);
+        {
+        }
+
+        public void printDataRow (String[] data)
+        {
+            if (true == checkProperty("debug.RowPrintIn"))
+            {
+                for (String s: data) System.out.print(s+", ");
+                System.out.println("from upstream (GRP)");
+            }
+
+            switch (firstMerge)
+            {
+            case -2: /* no merge; passthru */
+                parent.printDataRow(data);
+                return ;
+            default:
+                parent.printDataRow(trim(data));
+            }
+        }
+
+        public void printFooterRow ()
+        {
+            parent.printFooterRow();
+        }
+    };
+
+
+    /**
+     * GroupingRowPrinter chains onto a RowPrinter by groupinging columns "print" through it, and "printing" to downstream the combined (strcat) values
+     */
+    /* HERE */
+    protected class GroupingRowPrinter extends _MergingRowPrinter
+    {
+        String sep = ":";
+
+        public GroupingRowPrinter ()
+        {
+            this(new CsvRowPrinter());
+        }
+        public GroupingRowPrinter (RowPrinter aParent)
+        {
+            super(aParent);
+        }
+
+        protected void setSeperator(String aSep)
+        {
+            sep = aSep;
+        }
+        protected int outputColumnCount()
+        {
+            int res = 1;
+            for (int i = 0; i < merge.size(); i++) if (isMerge(i)) res++;
+            return res;
+        }
+
+        /** set the columns for grouping.  Convenience function. @param cols column numbers to group (first column is #0) */
+        public void groupKeys(String[] cols)
+        {
+            super.mergeKeys(cols);
+        }
+
+        public void printHeaderRow (String[] data)
+        {
+            merge.setSize(data.length);
+
+            super.printHeaderRow(data);
+
+            switch (firstMerge)
+            {
+            case -1: /* unset */ /* passthru */
+            case -2: /* no merge; passthru */
+                parent.printHeaderRow(data);
+                return ;
+            default:
+                break;
+            }
+
+            parent.printHeaderRow(trim(data));
+        }
+
+        protected String[] trim (String[] data)
+        {
+            work = new Vector<String>(outputColumnCount());
+            for (int i = 0; i < merge.size(); i++)
+            {
+                if (i == firstMerge)
+                    work.add(data[i]);
+                else if (false == isMerge(i))
+                {
+//System.out.println("Column " + i + " copies " + data[i]);
+                    try
+                    {
+                        work.add(data[i]);
+                    }
+                    catch (java.lang.ArrayIndexOutOfBoundsException aioobe)
+                    {
+                        System.out.print   ("data looks like: ");
+                        for (String a: data) System.out.print(a + ", ");
+                        System.out.println("so data index " + i + " greater than length " + data.length);
+                        throw new java.lang.ArrayIndexOutOfBoundsException(aioobe.getMessage() + " described");
+                    }
+//System.out.println("Column " + i + " is now " + work.get(i));
+                }
+                else
+                {
+//System.out.println("Column " + i + " will merge " + data[i] + " to " + work.get(firstMerge));
+                    work.set(firstMerge, work.get(firstMerge)+sep+data[i]);
+                    //work.add(null);
+                }
+            }
+
+            return work.toArray(new String[0]);
+        }
+    };
+
+    static public java.util.Vector<java.text.SimpleDateFormat> defaultFormatters()
+    {
+        java.util.Vector<java.text.SimpleDateFormat>f = new java.util.Vector(1,1);
+
+        f.add(new java.text.SimpleDateFormat("yyyy"));
+        f.add(new java.text.SimpleDateFormat("MMM"));
+        f.add(new java.text.SimpleDateFormat("d"));
+
+        return f;
+    }
+
+
+    /**
+     * EpochExpandingRowPrinter chains onto a RowPrinter by expanding epoch (well, millisecond epoch) columns "print" through it, and "printing" to downstream with expanded columns replacing marked epoch column(s)
+     */
+    /* HERE */
+    protected class EpochExpanderRowPrinter extends _MergingRowPrinter
+    {
+        java.util.Vector<java.text.SimpleDateFormat>formatters = null;
+        String[] labels = null;
+
+        public EpochExpanderRowPrinter ()
+        {
+            this(new CsvRowPrinter());
+        }
+        public EpochExpanderRowPrinter (RowPrinter aParent)
+        {
+            this(aParent, defaultFormatters(), "Year,Month,Day".split(","));
+        }
+
+        public EpochExpanderRowPrinter (java.util.Vector<java.text.SimpleDateFormat>formatters, String[] labels)
+        {
+            this(null, formatters, labels);
+        }
+
+        public EpochExpanderRowPrinter (RowPrinter aParent, java.util.Vector<java.text.SimpleDateFormat>formatters, String[] labels)
+        {
+            super(aParent);
+            this.formatters = formatters;
+            this.labels = labels;
+        }
+
+        public void printHeaderRow (String[] data)
+        {
+            merge().setSize(data.length);
+
+            super.printHeaderRow(data);
+
+            switch (firstMerge)
+            {
+            case -1: /* unset */ /* passthru */
+            case -2: /* no merge; passthru */
+                parent.printHeaderRow(data);
+                break;
+            default:
+                parent.printHeaderRow(htrim(data));
+                break;
+            }
+        }
+
+
+        protected int outputColumnCount()
+        {
+            int count = 0;
+            for (Boolean b: merge())
+                if (null == b)
+                    count++;
+                else if (false == b)
+                    count++;
+                else
+                    count+= formatters.size(); /* month/Day/Year */
+            return count;
+        }
+
+
+        protected void expand(String col)
+        {
+            super.set(col, true);
+        }
+        protected String[] trim (String[] data)
+        {
+            work = new Vector<String>(outputColumnCount());
+
+            for (int i = 0; i < data.length; i++)
+                if ( (null != merge.get(i)) && (true == merge.get(i)) )
+                {
+                    java.util.Date d = new java.util.Date(Long.parseLong(data[i]));
+                    for (java.text.SimpleDateFormat df: formatters)
+                        work.add(df.format(d));
+                }
+                else
+                    work.add(data[i]);
+
+            return work.toArray(new String[0]);
+        }
+        protected String[] htrim (String[] data)
+        {
+            work = new Vector<String>(outputColumnCount());
+
+            for (int i = 0; i < data.length; i++)
+                if ( (null != merge.get(i)) && (true == merge.get(i)) )
+                    for (String x: labels)
+                        work.add(data[i]+" "+x);
+                else
+                    work.add(data[i]);
+
+            return work.toArray(new String[0]);
+        }
+    };
+
+
+    /**
+     * ColumnGroupingRowPrinter chains onto a RowPrinter by groupinging columns "print" through it, and "printing" to downstream the combined (add) values
+     */
+
+    protected class ColumnGroupingRowPrinter extends GroupingRowPrinter
+    {
+        public ColumnGroupingRowPrinter (RowPrinter aParent)
+        {
+            super(aParent);
+        }
+
+        protected String[] trim (String[] data)
+        {
+            work = new Vector<String>(outputColumnCount());
+            for (int i = 0; i < merge.size(); i++)
+            {
+                if (i == firstMerge)
+                    work.add(data[i]);
+                else if (false == isMerge(i))
+                {
+//System.out.println("Column " + i + " copies " + data[i]);
+                    try
+                    {
+                        work.add(data[i]);
+                    }
+                    catch (java.lang.ArrayIndexOutOfBoundsException aioobe)
+                    {
+                        System.out.print   ("data looks like: ");
+                        for (String a: data) System.out.print(a + ", ");
+                        System.out.println("so data index " + i + " greater than length " + data.length);
+                        throw new java.lang.ArrayIndexOutOfBoundsException(aioobe.getMessage() + " described");
+                    }
+//System.out.println("Column " + i + " is now " + work.get(i));
+                }
+                else
+                {
+//System.out.println("Column " + i + " will merge " + data[i] + " to " + work.get(firstMerge));
+                    try
+                    {
+                        work.set(firstMerge, String.format("%f",Float.parseFloat(work.get(firstMerge))+Float.parseFloat(data[i])));
+                    }
+                    catch (java.lang.NumberFormatException nfe)
+                    {
+                        work.set(firstMerge, work.get(firstMerge)+sep+data[i]);
+                    }
+                }
+            }
+
+            return work.toArray(new String[0]);
+        }
+    };
+
+    /**
+     * SummarizingRowPrinter chains onto a RowPrinter by summarizing columns "print" through it, and "printing" to downstream when the row values for aggregation columns (ie keys) change
+     */
+    protected class SummarizingRowPrinter extends RowPrinter
+    {
+        protected RowPrinter parent;
+        abstract protected class Aggregate
+        {
+            void setHeader(String s) {};
+            abstract void add(String s);
+            abstract void reset();
+            abstract int width();
+            abstract void writeHeaders(String[] dest, int index);
+            abstract void writeData(String[] dest, int index);
+        };
+
+        protected class CacheAggregate extends Aggregate
+        {
+            boolean clear = true;
+            String header;
+            String value;
+            void reset()
+            {
+                clear = true;
+            }
+            void add (String s)
+            {
+                value = s;
+                clear = false;
+            }
+            int width()
+            {
+                return 1;
+            };
+            void setHeader(String s)
+            {
+                header = s;
+            };
+            void writeHeaders(String[] dest, int index)
+            {
+                dest[index] = header;
+            }
+            void writeData(String[] dest, int index)
+            {
+                dest[index] = value;
+            }
+        };
+
+        protected class SummaryAggregate extends Aggregate
+        {
+            float _min, _max, _accum;
+            int count = 0;
+            String header;
+            void reset()
+            {
+                count = 0;
+            }
+            void add (String s)
+            {
+                float f = Float.parseFloat(s);
+                if (0 == count++)
+                {
+                    _min = f;
+                    _max = f;
+                    _accum = f;
+                }
+                else
+                {
+                    if (f < _min) _min = f;
+                    if (_max < f) _max = f;
+                    _accum += f;
+                }
+            }
+            float min()
+            {
+                if (0 < count) return _min;
+                else return 0;
+            }
+            float max()
+            {
+                if (0 < count) return _max;
+                else return 0;
+            }
+            float ave()
+            {
+                if (0 < count) return _accum / count;
+                else return 0;
+            }
+            int width()
+            {
+                return 3;
+            };
+            void setHeader(String s)
+            {
+                header = s;
+            };
+            void writeHeaders(String[] dest, int index)
+            {
+                dest[index] = "Min "+header;
+                dest[index+1] = "Ave "+header;
+                dest[index+2] = "Max "+header;
+            }
+            void writeData(String[] dest, int index)
+            {
+                dest[index] = new Float(_min).toString();
+                dest[index+1] = new Float(_accum/count).toString();
+                dest[index+2] = new Float(_max).toString();
+            }
+        };
+
+        Vector<Aggregate> ag;
+        String[] work;
+        java.util.Vector<String> futureSummaries = null;	/**< until used during printHeaderRow(), contains not-yet-matched aggregate column numbers */
+        java.util.Vector<String> futureKeys = null;	/**< until used during printHeaderRow(), contains not-yet-matched aggregate keys */
+        Vector<Boolean> keys;
+        String currentKey = null;
+
+        public SummarizingRowPrinter ()
+        {
+            ag = new Vector<Aggregate>(12,1);
+            parent = new CsvRowPrinter();
+        }
+        public SummarizingRowPrinter (RowPrinter aParent)
+        {
+            if (null == aParent) parent = new CsvRowPrinter();    // yes, covering the case of calling it with a null value
+            else parent = aParent;
+            ag = new Vector<Aggregate>(12,1);
+        }
+
+        protected Aggregate set(int index, Aggregate a)
+        {
+            if (index >= ag.size()) ag.setSize(index+1);
+            return ag.set(index, a);
+        }
+        protected void key(int index)
+        {
+            if (null == keys) keys = new Vector(1,1);
+            if (index >= keys.size()) keys.setSize(index+1);
+            keys.set(index, true);
+        }
+        protected void key(String index)
+        {
+            if (null == futureKeys)
+                futureKeys = new java.util.Vector(2,2);
+            futureKeys.add(index);
+        }
+        protected int outputColumnCount()
+        {
+            int count = 0;
+            for (Aggregate a: ag)
+                if (null == a)
+                    count++;
+                else
+                    count+= a.width();
+            return count;
+        }
+
+        /** set the columns for summarizing.  Convenience function. @param colNumber column number to summarize Min/Ave/Max (first column is #0) */
+        public void summarize(int colNumber)
+        {
+            set(colNumber, new SummaryAggregate());
+        }
+
+        /** set the columns for summarizing.  Convenience function. @param colName (future hader) column name to summarize Min/Ave/Max */
+        public void summarize(String colName)
+        {
+            if (null == futureSummaries)
+                futureSummaries = new java.util.Vector(2,2);
+            futureSummaries.add(colName);
+        }
+
+        public void printHeaderRow (String[] data)
+        {
+            if (null != futureSummaries)
+                for (int i = data.length-1; i >= 0; i--)
+                    if (futureSummaries.contains(data[i]))
+                        summarize(i);
+            if (null != futureKeys)
+                for (int i = data.length-1; i >= 0; i--)
+                    if (futureKeys.contains(data[i]))
+                        key(i);
+            futureKeys = null;
+            if (null == keys)
+                for (int i = 0; i < data.length; i++)
+                    if (null == ag.get(i))
+                    {
+                        key(i);
+                        i = data.length;
+                    }
+            if (null == keys) key(0);
+            keys.setSize(data.length);
+
+            // set the working transforms to match the incoming widths
+            if (data.length > ag.size()) ag.setSize(data.length);
+            for (int i = 0; i < ag.size(); i++) if (null == ag.get(i)) set (i, new CacheAggregate());
+            //System.out.println("data width is " + data.length);
+            //System.out.println("aggr width is " + ag.size());
+            //System.out.println("outp width is " + outputColumnCount());
+            // build some output workspace
+            work = new String[outputColumnCount()];
+
+            int colcount = 0;
+            for(int i=0; i<data.length; i++)
+            {
+                Aggregate a;
+
+                if (i >= ag.size())
+                    work[colcount++] = data[i];
+                else if (null == (a = ag.get(i)))
+                    work[colcount++] = data[i];
+                else
+                {
+                    a.setHeader(data[i]);
+                    a.writeHeaders(work, colcount);
+                    colcount += a.width();
+                }
+            }
+            //System.out.println("header 0 is " + data[0]);
+
+            parent.printHeaderRow(work);
+        }
+
+        public void printDataRow (String[] data)
+        {
+            int colcount = 0;
+            String newKey = "";
+
+            // spit out current content
+            for (int i=0; i<data.length; i++) if ( (null != keys.get(i)) && (true == keys.get(i)) )
+                    newKey += "!"+data[i];
+            if (null == currentKey)
+            {
+                //System.out.println("currentKey is null, new value is " + newKey);
+                currentKey = newKey;
+            }
+            else if (! newKey.equals(currentKey))
+            {
+                //System.out.println("currentKey is " + currentKey + ", new value is " + newKey);
+                for(int i=0; i<data.length; i++)
+                {
+                    Aggregate a;
+
+                    if (i >= ag.size())
+                        work[colcount++] = data[i];
+                    else if (null == (a = ag.get(i)))
+                        work[colcount++] = data[i];
+                    else
+                    {
+                        a.writeData(work, colcount);
+                        colcount += a.width();
+                        a.reset();
+                    }
+                }
+
+                parent.printDataRow(work);
+                currentKey = newKey;
+            }
+            //else System.out.println("currentKey is " + currentKey + ", dupe value is " + newKey);
+
+            for(int i=0; i< (data.length <= ag.size() ? data.length : ag.size()); i++)
+            {
+                Aggregate a = ag.get(i);
+                if (null != a) a.add(data[i]);
+            }
+            /*
+            	  if (i >= ag.size())
+            	    work[colcount++] = data[i];
+            	  else if (null == (a = ag.get(i))) ;
+            	  */
+        }
+
+        public void printFooterRow ()
+        {
+            int colcount = 0;
+
+            // spit out current content
+            if (null != currentKey)
+            {
+                //System.out.println("currentKey is " + currentKey + ", footer");
+                for(Aggregate a: ag)
+                {
+                    if (null == a)
+                        work[colcount++] = null;
+                    else
+                    {
+                        a.writeData(work, colcount);
+                        colcount += a.width();
+                        a.reset();
+                    }
+                }
+
+                parent.printDataRow(work);
+            }
+        }
+    };
+
+    /**
+     * TrendingRowPrinter skipped
+     */
+
+    /** and here's the singleton */
+    protected static RowPrinter rowPrinter = null;
+
+    /** and here's the singleton instantiated as the default if not already set */
+    protected RowPrinter getRowPrinter()
+    {
+        if (null == rowPrinter) rowPrinter = new CsvRowPrinter();
+        return rowPrinter;
+    }
+
+
+    /** singleton */
+    private Workbook wb = null;
+    protected Workbook wb()
+    {
+        if (null == wb)
+        {
+            wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+        }
+        return wb;
+    }
+
+    /** singleton */
+    protected Sheet getSheet(String n)
+    {
+        Sheet s = wb().getSheet(n);
+        if (null == s) s = wb().createSheet(n);
+        return s;
+    }
+
+    protected OutputStream outf = null;
+    void openXLSX(String f) throws java.io.FileNotFoundException, java.io.IOException, org.apache.poi.openxml4j.exceptions.InvalidFormatException
+    {
+        if ( (null != outf) && (null != wb) )
+        {
+            wb.write(outf);
+            outf.close();
+            wb = null;
+        }
+
+        if (null != f)
+        {
+            try
+            {
+                FileInputStream ifs = new FileInputStream(f);
+                wb = WorkbookFactory.create(ifs);
+                ifs.close();
+            }
+            catch (java.io.FileNotFoundException fnf)
+            {
+                wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+            }
+
+            outf = new FileOutputStream(f);
+        }
+        else
+            outf = null;
+    }
+
+
+
+    public void reallyGo(String f)
+    {
+        try
+        {
+            openXLSX(f);
+        }
+        catch (Exception x)
+        {
+            x.printStackTrace();
+            return ;
+        }
+
+        /* create the unpopulated first sheets */
+        Sheet s = getSheet("Health");
+        s = getSheet("Utilization");
+        s = getSheet("Utilization - ISL");
+        s = getSheet("Utilization - SCP");
+        s = getSheet("Performance");
+
+        /* first data page: sum any physical issues into a single column */
+        /* the intent is also to count the number of each during a time slot vs the total # ports for a % good */
+        try
+        {
+            consume(openFile("file://HUP-1-Physical-19-trend.csv"), getPreset (PRESET.HEALTH_PHYS_1));
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+
+        /* consider walking forward in summaries, and counting the % across a dividing parameter */
+
+        /* second sheet is just raw utilization */
+        try
+        {
+            java.util.Vector<java.text.SimpleDateFormat>df = defaultFormatters();
+            df.add(new java.text.SimpleDateFormat("hh"));
+            EpochExpanderRowPrinter erp = new EpochExpanderRowPrinter(new DocSheetRowPrinter(getSheet("data.Util.t.All")), df, "Year,Month,Day,Hour".split(","));
+
+            erp.expand("Time (ms)");
+            consume(openFile("file://HUP-1-Utilization-19-trend.csv"), erp);	// getPreset (PRESET.UTIL_YMDH_1);
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+
+        /* third sheet is Buffer-to-Buffer information filtered to only ISLs */
+
+        /* fourth sheet is min/max/ave of frames/sec with a focus on anything showing zero frames */
+        /* todo: set grouping by year/month/WWN */
+
+        try
+        {
+            consume(openFile("file://HUP-1-Utilization-19-trend.csv"), getPreset (PRESET.UTIL_MINMAXAVG_YMD_1));
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+
+
+    }
+
+    public enum PRESET
+    {
+        TEST_GROUP_1		/**< build a test page: strcat first, second, third column */	,
+        HEALTH_PHYS_1	/**< build the data.Health.Phys page */	,
+        TEST_HEALTH_PHYS_1	/**< build a test for the data.Health.Phys but don't dump it to the Doc page */	,
+        UTIL_YMDH_1	/**< build the data.Util.t.All page */	,
+        UTIL_MINMAXAVG_YMD_1	/**< build the data.Util.t.StoneCold page */	,
+        TEST_MINMAXAVG_YMD_1	/**< test the data.Util.t.StoneCold pipeline */	,
+        TEST_GROUP_2		/**< build a test page: strcat first, second, third column by name */	,
+        TEST_GROUP_3		/**< build a test page: strcat columns with names similar to live data */	,
+        TEST_SUMMARIZE_1	/**< build a test page: summarize the second column as min/max/avg */	,
+        TEST_SUMMARIZE_2	/**< build a test page: summarize the second column as min/max/avg by name */	,
+        TEST_SUMMARIZE_3	/**< build a test page: summarize the column named "test 2" as min/max/avg by name keyed by column "key" */	,
+        TEST_EPOCH_YMD_1	/**< build a test page: expand the time value into Year/Month/Day */	,
+        TEST_EPOCH_YMDH_1	/**< build a test page: expand the time value into Year/Month/Day/Hour */
+    };
+
+    protected RowPrinter getPreset (PRESET p)
+    {
+        RowPrinter rp = null;
+
+        switch (p)
+        {
+        case TEST_GROUP_1:	/* build a test page: strcat first, second, third column */
+            ColumnGroupingRowPrinter cgrp = new ColumnGroupingRowPrinter(null);
+            // group first three columns as grouping key for summarization
+            cgrp.groupKeys("0,1,2".split(","));
+            return cgrp;
+        case TEST_GROUP_2:	/* build a test page: strcat first, second, third column by name */
+            cgrp = new ColumnGroupingRowPrinter(null);
+            // group first three columns as grouping key for summarization -- note "marge" is an intentional non-existent header
+            cgrp.groupKeys("marge,key1,key2,key3".split(","));
+            return cgrp;
+        case TEST_GROUP_3:	/* build a test page: strcat columns with names similar to live data */
+            cgrp = new ColumnGroupingRowPrinter(null);
+            // group first three columns as grouping key for summarization
+            cgrp.groupKeys("Loss of Sync Events,Loss of Signal Events,Link Resets,Link Failures,CRC Errors,Class 3 Discards".split(","));
+            return cgrp;
+
+        case TEST_SUMMARIZE_1:	/* build a test page: summarize the second column as min/max/avg */
+            SummarizingRowPrinter srp = new SummarizingRowPrinter(null);
+            // summarize (minMaxAve) column 1 (0-biased)
+            srp.summarize(1);
+            return srp;
+        case TEST_SUMMARIZE_2:	/* build a test page: summarize the second column as min/max/avg by name */
+            srp = new SummarizingRowPrinter(null);
+            // summarize (minMaxAve) column 1 (0-biased)
+            srp.summarize("test 2");
+            return srp;
+        case TEST_SUMMARIZE_3:	/* build a test page: summarize the "test 2" column as min/max/avg by name keyed by column named "key"*/
+            srp = new SummarizingRowPrinter(null);
+            srp.summarize("test 2");
+            srp.key("key");
+            return srp;
+
+        case TEST_EPOCH_YMD_1:	/* build a test page: expand the time value into Year/Month/Day */
+            EpochExpanderRowPrinter erp = new EpochExpanderRowPrinter();
+            // summarize (minMaxAve) column 1 (0-biased)
+            erp.expand("Time (ms)");
+            return erp;
+        case TEST_EPOCH_YMDH_1:	/* build a test page: expand the time value into Year/Month/Day/Hour */
+            java.util.Vector<java.text.SimpleDateFormat>f = defaultFormatters();
+            f.add(new java.text.SimpleDateFormat("hh"));
+            erp = new EpochExpanderRowPrinter(f, "Year,Month,Day,Hour".split(","));
+            erp.expand("Time (ms)");
+            return erp;
+
+        case HEALTH_PHYS_1:
+            rp = new DocSheetRowPrinter(getSheet("data.Health.Phys"));
+            /* intentional fall-thru */
+        case TEST_HEALTH_PHYS_1:
+            java.util.Vector<java.text.SimpleDateFormat>df = defaultFormatters();
+            df.add(new java.text.SimpleDateFormat("hh"));
+            erp = new EpochExpanderRowPrinter(rp, df, "Year,Month,Day,Hour".split(","));
+            erp.expand("Time (ms)");
+            cgrp = new ColumnGroupingRowPrinter(erp);
+            cgrp.groupKeys("Loss of Sync Events,Loss of Signal Events,Link Resets,Link Failures,CRC Errors,Class 3 Discards".split(","));
+            return cgrp;
+        case UTIL_YMDH_1:
+            df = defaultFormatters();
+            df.add(new java.text.SimpleDateFormat("hh"));
+            erp = new EpochExpanderRowPrinter(new DocSheetRowPrinter(getSheet("data.Util.t.All")), df, "Year,Month,Day,Hour".split(","));
+            erp.expand("Time (ms)");
+            return erp;
+        case UTIL_MINMAXAVG_YMD_1:
+            /* intentional fall-thru */
+            rp = new DocSheetRowPrinter(getSheet("data.Util.t.StoneCold"));
+            /* intentional fall-thru */
+        case TEST_MINMAXAVG_YMD_1:
+            srp = new SummarizingRowPrinter(rp);
+            srp.summarize("Frame / Sec");
+            srp.key("Attached Port WWN");
+            srp.key("Time (ms) Week");
+            //srp.key("Date/Time");
+            df = defaultFormatters();
+            df.add(new java.text.SimpleDateFormat("w"));
+            erp = new EpochExpanderRowPrinter(srp, df, "Year,Month,Day,Week".split(","));
+            erp.expand("Time (ms)");
+            return erp;
+
+        default:
+            throw new java.lang.NullPointerException ("fell off end of case");
+        }
+    }
+
+
+    public void gotest()
+    {
+        rowPrinter = getPreset (PRESET.TEST_GROUP_1);
+        getRowPrinter().printHeaderRow("key1,key2,key3,test 1,test 2,test 3".split(","));
+        getRowPrinter().printDataRow("1,1,1,2,3,4".split(","));
+        getRowPrinter().printDataRow("1,1,1,4,5,6".split(","));
+        getRowPrinter().printDataRow("1,2,1,7,8,9".split(","));
+        getRowPrinter().printDataRow("1,2,1,a,b,c".split(","));
+        getRowPrinter().printFooterRow();
+
+        rowPrinter = getPreset (PRESET.TEST_GROUP_2);
+        getRowPrinter().printHeaderRow("key1,key2,key3,test 1,test 2,test 3".split(","));
+        getRowPrinter().printDataRow("1,1,1,2,3,4".split(","));
+        getRowPrinter().printDataRow("1,1,1,4,5,6".split(","));
+        getRowPrinter().printDataRow("1,2,1,7,8,9".split(","));
+        getRowPrinter().printDataRow("1,2,1,a,b,c".split(","));
+        getRowPrinter().printFooterRow();
+
+        rowPrinter = getPreset (PRESET.TEST_GROUP_3);
+        getRowPrinter().printHeaderRow("Loss of Sync Events,Loss of Signal Events,Link Resets,test 1,test 2,test 3".split(","));
+        getRowPrinter().printDataRow("1,1,1,2,3,4".split(","));
+        getRowPrinter().printDataRow("1,1,1,4,5,6".split(","));
+        getRowPrinter().printDataRow("1,2,1,7,8,9".split(","));
+        getRowPrinter().printDataRow("1,2,1,a,b,c".split(","));
+        getRowPrinter().printFooterRow();
+
+        rowPrinter = getPreset (PRESET.TEST_SUMMARIZE_1);
+        getRowPrinter().printHeaderRow("key,test 2,test 3,test 4,test 5,test 6,test 7,test 8,test 9".split(","));
+        getRowPrinter().printDataRow("1,2,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("1,4,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("1,1,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("2,2,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("2,4,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("3,1,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printFooterRow();
+
+        rowPrinter = getPreset (PRESET.TEST_SUMMARIZE_2);
+        getRowPrinter().printHeaderRow("key,test 2,test 3,test 4,test 5,test 6,test 7,test 8,test 9".split(","));
+        getRowPrinter().printDataRow("1,2,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("1,4,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("1,1,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("2,2,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("2,4,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("3,1,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printFooterRow();
+
+
+        rowPrinter = getPreset (PRESET.TEST_SUMMARIZE_3);
+        getRowPrinter().printHeaderRow("key,wedge,test 2,test 3,test 4,test 5,test 6,test 7,test 8,test 9".split(","));
+        getRowPrinter().printDataRow("1,1,2,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("1,1,4,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("1,2,1,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("2,2,2,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("2,3,4,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("3,3,1,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printFooterRow();
+
+        rowPrinter = getPreset (PRESET.TEST_SUMMARIZE_3);
+        getRowPrinter().printHeaderRow("wedge,key,test 2,test 3,test 4,test 5,test 6,test 7,test 8,test 9".split(","));
+        getRowPrinter().printDataRow("1,1,2,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("1,1,4,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("1,2,1,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("2,2,2,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("2,3,4,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("3,3,1,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printFooterRow();
+
+        rowPrinter = getPreset (PRESET.TEST_SUMMARIZE_3);
+        getRowPrinter().printHeaderRow("key,key,test 2,test 3,test 4,test 5,test 6,test 7,test 8,test 9".split(","));
+        getRowPrinter().printDataRow("1,1,2,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("1,1,4,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("1,2,1,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("2,2,2,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("2,3,4,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printDataRow("3,3,1,3,4,5,6,7,8,9".split(","));
+        getRowPrinter().printFooterRow();
+
+        rowPrinter = getPreset (PRESET.TEST_EPOCH_YMD_1);
+        getRowPrinter().printHeaderRow("key,test 2,Time (ms),test 4,test 5,test 6,test 7,test 8,test 9".split(","));
+        getRowPrinter().printDataRow("1,2,1359417600000,4,5,6,7,8,9".split(","));	/* Mon Jan 28 16:00:00 PST 2013 */
+        getRowPrinter().printDataRow("1,4,1351148400000,4,5,6,7,8,9".split(","));	/* ??? Oct 25 ??:00:00 PST 2012 */
+        getRowPrinter().printDataRow("1,1,1359424800000,4,5,6,7,8,9".split(","));	/* Mon Jan 28 18:00:00 PST 2013 */
+        getRowPrinter().printDataRow("2,2,1359428400000,4,5,6,7,8,9".split(","));	/* Mon Jan 28 19:00:00 PST 2013 */
+        getRowPrinter().printFooterRow();
+
+
+        rowPrinter = getPreset (PRESET.TEST_EPOCH_YMDH_1);
+        getRowPrinter().printHeaderRow("key,test 2,Time (ms),test 4,test 5,test 6,test 7,test 8,test 9".split(","));
+        getRowPrinter().printDataRow("1,2,1359417600000,4,5,6,7,8,9".split(","));	/* Mon Jan 28 16:00:00 PST 2013 */
+        getRowPrinter().printDataRow("1,4,1351148400000,4,5,6,7,8,9".split(","));	/* ??? Oct 25 ??:00:00 PST 2012 */
+        getRowPrinter().printDataRow("1,1,1359424800000,4,5,6,7,8,9".split(","));	/* Mon Jan 28 18:00:00 PST 2013 */
+        getRowPrinter().printDataRow("2,2,1359428400000,4,5,6,7,8,9".split(","));	/* Mon Jan 28 19:00:00 PST 2013 */
+        getRowPrinter().printFooterRow();
+
+        rowPrinter = getPreset (PRESET.TEST_HEALTH_PHYS_1);
+        getRowPrinter().printHeaderRow("key,Loss of Sync Events,Loss of Signal Events,Link Resets,Link Failures,CRC Errors,Class 3 Discards,Time (ms)".split(","));
+        getRowPrinter().printDataRow("10000000c9123456,0,0,1,0,0,3,1359417600000".split(","));	/* Mon Jan 28 16:00:00 PST 2013 */
+        getRowPrinter().printDataRow("10000000c9123457,0,0,0,0,0,0,1351148400000".split(","));	/* ??? Oct 25 ??:00:00 PST 2012 */
+        getRowPrinter().printFooterRow();
+
+        rowPrinter = getPreset (PRESET.TEST_MINMAXAVG_YMD_1);
+        getRowPrinter().printHeaderRow("Port Number,Port Module Number,Attached Port WWN,Attached Port Name,Attached Device Type,Channel,Fabric,Environment,Probe Serial Number,Probe Name,Frame / Sec,Total Capacity %,Zero Buffer-to-Buffer Credit Information,Date/Time,Time (ms)".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 16:00:00 PST 2013,1359763200000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 17:00:00 PST 2013,1359766800000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 18:00:00 PST 2013,1359770400000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 19:00:00 PST 2013,1359774000000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 20:00:00 PST 2013,1359777600000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 21:00:00 PST 2013,1359781200000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 22:00:00 PST 2013,1359784800000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 23:00:00 PST 2013,1359788400000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Sun Feb 03 20:00:00 PST 2013,1359950400000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Sun Feb 03 21:00:00 PST 2013,1359954000000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Sun Feb 03 22:00:00 PST 2013,1359957600000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Sun Feb 03 23:00:00 PST 2013,1359961200000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Mon Feb 04 00:00:00 PST 2013,1359964800000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Mon Feb 04 01:00:00 PST 2013,1359968400000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Mon Feb 04 02:00:00 PST 2013,1359972000000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Mon Feb 04 03:00:00 PST 2013,1359975600000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Mon Feb 04 04:00:00 PST 2013,1359979200000".split(","));
+        getRowPrinter().printFooterRow();
+
+    }
+
+
+
+    /** usage messages are useful to those of us with short memories as well (hey, I just need to add swap!) */
+    private static int usage(String progname, int errorPassThru, String reason)
+    {
+        System.out.println("Usage: "+progname+" -V|--version|-H|--help");
+        System.out.println("     : "+progname+" [ --input <url>] [ --filter <oui or wwn> ][ --output <file>]");
+        System.out.println("     : "+progname+" [--express|-x] [ {--go|-g}[file] ]");
+        System.out.println("   ie: "+progname+" -g");
+        System.out.println("     : "+progname+" -gHUP.xlsx");
+        System.out.println("     : "+progname+" --go=HUP.xlsx");
+        System.out.println("     : "+progname+" -x");
+        System.out.println("");
+
+        if (null != reason)
+            System.err.println ("error: "+reason);
+        return errorPassThru;
+    }
+
+
+
+    public static void main(String[] args) throws Exception
+    {
+        CSVPipe p = new CSVPipe();
+
+        java.util.Vector<LongOpt> options = new java.util.Vector(20,2);
+
+        /* Always always ALWAYS provide a quick reference and a version output */
+        options.add(new LongOpt("help", LongOpt.NO_ARGUMENT, null, 'H'));
+        options.add(new LongOpt("version", LongOpt.NO_ARGUMENT, null, 'V'));
+
+        options.add(new LongOpt("express", LongOpt.NO_ARGUMENT, null, 'x'));
+        options.add(new LongOpt("go", LongOpt.OPTIONAL_ARGUMENT, null, 'g'));
+        options.add(new LongOpt("filter", LongOpt.REQUIRED_ARGUMENT, null, 'c'));
+        options.add(new LongOpt("multipathfilter", LongOpt.REQUIRED_ARGUMENT, null, 'm'));
+        options.add(new LongOpt("input", LongOpt.REQUIRED_ARGUMENT, null, 'i'));
+        options.add(new LongOpt("output", LongOpt.REQUIRED_ARGUMENT, null, 'o'));
+
+        org.smallfoot.getopt.GetOpt g = new org.smallfoot.getopt.GetOpt("csvpipe", args, options);
+
+        int c;
+        while ((c = g.getopt()) != -1)
+        {
+            switch(c)
+            {
+            case 'x': /* just go */
+                p.gotest();
+                break;
+
+            case 'g': /* just go */
+                if (null == g.getOptarg())
+                    p.reallyGo("HUP.xlsx");
+                else
+                    p.reallyGo(g.getOptarg());
+                break;
+
+            case 'i': /* dump query */
+                p.consume (p.openFile(g.getOptarg()));
+                break;
+
+            case 'f': /* Add Filter or pipe */
+                break;
+
+            case 'V':   // spit out the version string
+                System.out.println(g.consistentVersion("@VERSION@-$Revision: 559 $")+"\n");
+                return;
+
+            default:
+            case '?':
+                // during build, this is just a dump of options; in shipping, this falls-thru to usage.
+                //System.out.println("option \""+c+"\" selected");
+                //System.out.println("long index = "+g.getLongind());
+
+            case 'H':
+                System.exit(p.usage(g.progname(), 0, null));
+                break;
+            }
+        }
+
+        /* force closure of any in-progress XLSX */
+        p.openXLSX(null);
+
+    }
+
+
+    /**
+     * Produce a BufferedReader for the given uri in a way that corresponds to the url protocol
+     *
+     * @return BufferedReader ready to offer back the data
+     * @param uri the file:// resource of a file, ie "file:///sample.csv"
+     */
+    protected BufferedReader openFile(String uri) throws java.io.FileNotFoundException, java.net.MalformedURLException, java.io.IOException
+    {
+        // http://www.roseindia.net/java/beginners/construct_file_name_path.shtml ?
+        if (uri.toLowerCase().startsWith("file://"))
+        {
+            BufferedReader rr = new BufferedReader(new FileReader (uri.substring(7)));
+            return rr;
+        }
+        else   //if (uri.toLowerCase().startsWith("http://"))
+        {
+            DataSource ds = new URLDataSource(new java.net.URL(uri));
+            System.out.println("using discovered URL opener: DataSource open to "+uri);
+            return new BufferedReader(new InputStreamReader(ds.getInputStream()));
+        }
+    }
+
+    void consume (BufferedReader br, RowPrinter rp)
+    {
+        String line;
+        int header = 1;
+
+        if (null != br)
+            try
+            {
+                while (null != (line = br.readLine()))
+                    if (0 < line.length())
+                    {
+                        String[] lb = line.split(",");
+                        if (0 < header--)
+                            rp.printHeaderRow(lb);
+                        else
+                            rp.printDataRow(lb);
+                    }
+
+                rp.printFooterRow();
+            }
+            catch (java.io.IOException ioe)
+            {
+                System.out.println(getClass().getName() + " I/O Error: " + ioe.getMessage());
+            }
+    }
+
+    void consume (BufferedReader br)
+    {
+        consume(br, getRowPrinter());
+    }
+
+
+}
