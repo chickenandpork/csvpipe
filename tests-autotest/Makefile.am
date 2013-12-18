@@ -1,12 +1,12 @@
-EXTRA_DIST = testsuite.at.in testsuite $(TESTSUITE) atlocal.in
-CONFIG_CLEAN_FILES = atconfig atlocal package.m4 testsuite testsuite.log testsuite.at
+EXTRA_DIST = testsuite.at.in testsuite $(TESTSUITE)
+CONFIG_CLEAN_FILES = atconfig package.m4 testsuite testsuite.log testsuite.at
 TESTSUITE = $(srcdir)/testsuite
 
-check-local: atconfig atlocal $(TESTSUITE)
+check-local: atconfig $(TESTSUITE)
 	$(SHELL) '$(TESTSUITE)' $(TESTSUITEFLAGS) AUTOTEST_PATH=$$(dirname $(JAVA))
 	rm -fr $(srcdir)/testsuite.dir
 
-installcheck-local: atconfig atlocal $(TESTSUITE)
+installcheck-local: atconfig $(TESTSUITE)
 	$(SHELL) '$(TESTSUITE)' AUTOTEST_PATH='$(bindir)' $(TESTSUITEFLAGS)
 	rm -fr $(srcdir)/testsuite.dir
 
