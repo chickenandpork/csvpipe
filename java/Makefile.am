@@ -1,7 +1,7 @@
-nodist_pkgdata_JAVA = CSVPipe.java
+nodist_pkgdata_JAVA = CSVPipe.java version.java
 nodist_pkgdata_DATA = $(notdir $(subdir)).jar
 
-EXTRA_DIST = $(nodist_pkgdata_JAVA) CSVPipe.java.in
+EXTRA_DIST = $(nodist_pkgdata_JAVA) CSVPipe.java.in version.java.in
 CONFIG_CLEAN_FILES = $(notdir $(subdir)).jar
 
 AM_JAVACFLAGS= -cp $(top_builddir)/depjars/poi-3.8-20120326.jar:$(top_builddir)/depjars/poi-ooxml-3.8-20120326.jar:$(top_builddir)/depjars/xmlbeans-2.3.0.jar:$(top_builddir)/depjars/poi-ooxml-schemas-3.8-20120326.jar:$(top_builddir)/depjars/dom4j-1.6.1.jar:$(top_builddir)/depjars/commons-io-2.3.jar:@GETOPTJAR@
