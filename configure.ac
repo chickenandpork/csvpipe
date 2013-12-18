@@ -149,7 +149,6 @@ AC_SUBST([GETOPTJAR], ${WITH_GETOPTJAR})
 
 
 AC_CONFIG_FILES(Makefile
-  convjars/Makefile 
   depjars/Makefile 
   java/Makefile java/CSVPipe.java
   java/version.java
