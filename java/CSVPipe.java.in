@@ -69,229 +69,6 @@ public class CSVPipe
     public static String TF_3339 = "%04d-%02d-%02d %02d:%02d:%02d";	/**< what a modified XML5/RFC-3339 timestamp looks like */
 
 
-
-
-    /**
-     * rowPrinter is a way to pop in a singleton representing the format of a printer
-     *
-     * if unset, the singleton request results in the default, a CSV printer.  Additional may
-     * be assigned in the descendent classes.
-     *
-     * In my defense, this was originally done because the output path involved arrays of strings:
-     * by altering the strings, one can easily insert additional columns or munge them on the way past.
-     *
-     * The resulting Stringly-typed code (no, not a typo) in these RowPrinter descendents were
-     * a case of shimming on additional (bag-on-the-side?) adapters to get it one-step-further.
-     * The result may well be a true Stringly-typed, but it got me across the bridge this time.
-     *
-     * I'd like to suggest that the maintenance burden this adds is similar to the maintenance
-     * burden of trying to give "good" CSV, where "good" is a moving definition (start by trying
-     * all four line-endings starting with #13#10 and #10, and add spaces where your test data
-     * didn't originally have it, plus a few double-quotes, and now you're starting to test the
-     * N! of the CSV issue).  I should have moved back into the XML space from the start, and
-     * looked at re-using the transforms I already use.
-     */
-    abstract protected class RowPrinter
-    {
-        abstract public void printHeaderRow (String[] columns);
-        abstract public void printDataRow (String[] columns);
-        abstract public void printFooterRow ();
-
-        java.util.Properties _prop = null;
-        boolean checkProperty(String n)
-        {
-            if (null == _prop) _prop = System.getProperties();
-            //return ( (null != _prop.getProperty(n)) && (false != Boolean.parseBoolean(_prop.getProperty(n))) );
-            return (
-                       Boolean.parseBoolean(_prop.getProperty(n))
-                       || (getClass().getName().equalsIgnoreCase(_prop.getProperty(n)))
-                       || (getClass().getName().replaceAll("^.*\\.","").equalsIgnoreCase(_prop.getProperty(n)))
-                   );
-        }
-    };
-
-    /**
-     * CsvRowPrinter is the default method of printing: just spit it out
-     */
-    protected class CsvRowPrinter extends RowPrinter
-    {
-        public void printHeaderRow (String[] data)
-        {
-            printDataRow(data);
-        }
-
-        public void printDataRow (String[] data)
-        {
-            if (true == checkProperty("debug.RowPrintIn"))
-            {
-                for (String s: data) System.out.print(s+", ");
-                System.out.println("from upstream (CSV)");
-            }
-            for(int i=0; i<data.length; i++)
-            {
-                System.out.print(data[i]);
-                if(i < data.length - 1)
-                    System.out.print(",");
-            }
-            System.out.println();
-        }
-        public void printFooterRow () {};
-    };
-
-    /**
-     * DocRowPrinter is a basic pass-thru to a Word Doc page
-     */
-    protected class DocSheetRowPrinter extends RowPrinter
-    {
-        //Sheet summary;
-        CellStyle styleHeader;
-        CellStyle styleBody;
-        //CellStyle styleUnknown;
-        //CellStyle styleOK;
-        //CellStyle styleAmber;
-        //CellStyle styleRed;
-        //int row = 0;
-        //FileOutputStream out;
-        //java.util.HashMap<RAG, CellStyle> styles;
-
-        /** singleton: workbook */
-        private CreationHelper _ch = null;
-        /** singleton: workbook */
-        protected CreationHelper getCreationHelper()
-        {
-            if (null == _ch) _ch = target.getWorkbook().getCreationHelper();
-            return _ch;
-        }
-
-
-        int row;
-        short coloffset;
-        Sheet target;
-
-        public DocSheetRowPrinter (Sheet target)
-        {
-            this (target, 0, 0);
-        }
-        public DocSheetRowPrinter (Sheet target, int rowoffset, int coloffset)
-        {
-            this.target = target;
-            this.row = rowoffset;
-            this.coloffset = (short) coloffset;
-
-            styleBody = target.getWorkbook().createCellStyle();
-            //styleBody.setBorderRight(CellStyle.BORDER_THIN);
-            //styleBody.setBorderBottom(CellStyle.BORDER_THIN);
-            //styleBody.setBorderLeft(CellStyle.BORDER_THIN);
-            //styleBody.setBorderTop(CellStyle.BORDER_THIN);
-            styleBody.setVerticalAlignment(CellStyle.VERTICAL_CENTER);
-
-            styleHeader = target.getWorkbook().createCellStyle();
-            styleHeader.cloneStyleFrom(styleBody);
-            styleHeader.setAlignment(CellStyle.ALIGN_CENTER);
-        };
-
-        /**
-         * createTextCell
-         */
-        Cell createTextCell(Row row, CreationHelper ch, short col, String text, CellStyle cellStyle)
-        {
-            Cell c = row.createCell(col, Cell.CELL_TYPE_STRING);
-            if (null != text) c.setCellValue(ch.createRichTextString(text));
-            c.setCellStyle(cellStyle);
-
-            return c;
-        }
-
-        /**
-         * createFloatCell
-         */
-        Cell createTextCell(Row row, CreationHelper ch, short col, float num, CellStyle cellStyle)
-        {
-            Cell c = row.createCell(col, Cell.CELL_TYPE_NUMERIC);
-            c.setCellValue(num);
-            c.setCellStyle(cellStyle);
-
-            return c;
-        }
-
-        public void printHeaderRow (String[] data)
-        {
-            printRowCS(data, styleHeader);
-        }
-        public void printDataRow (String[] data)
-        {
-            printRowCS(data, styleBody);
-        }
-
-        public void printRowCS (String[] data, CellStyle cs)
-        {
-            if (true == checkProperty("debug.RowPrintIn"))
-            {
-                for (String s: data) System.out.print(s+", ");
-                System.out.println("from upstream (CSV)");
-            }
-
-            Row r = target.createRow(row++);
-            for (short i = 0; i < data.length; i++)
-                createTextCell(r, getCreationHelper(), (short) (i + coloffset), data[i], cs);
-        }
-
-        public void printFooterRow ()
-        {
-        }
-    };
-
-    /**
-     * LimitedIntervalsRowPrinter is a basic pass-thru but shunts further passes after a certain number have gone through
-     */
-    protected class LimitedIntervalsRowPrinter extends RowPrinter
-    {
-        protected RowPrinter parent;
-        protected int maxIntervals = Integer.MAX_VALUE;
-
-        public LimitedIntervalsRowPrinter (RowPrinter aParent)
-        {
-            if (null == aParent) parent = new CsvRowPrinter();    // yes, covering the case of calling it with a null value
-            else parent = aParent;
-        }
-        public LimitedIntervalsRowPrinter (RowPrinter aParent, int maxint)
-        {
-            if (null == aParent) parent = new CsvRowPrinter();
-            else parent = aParent;
-            maxIntervals = maxint;
-        }
-
-        public void printHeaderRow (String[] data)
-        {
-            parent.printHeaderRow(data);
-        }
-
-        public void printDataRow (String[] data)
-        {
-            if (true == checkProperty("debug.RowPrintIn"))
-            {
-                for (String s: data) System.out.print(s+", ");
-                System.out.println(" from upstream (LIRP)");
-            }
-
-            if (true == checkProperty("debug.RowPrintOut"))
-            {
-                System.out.print("maxIntervals is " + maxIntervals + " therefore " + ((maxIntervals > 0) ? "" : "not ") + "sending ");
-                for (String s: data) System.out.print(s+", ");
-                System.out.println(" to downstream (LIRP)");
-            }
-            if (maxIntervals-- >= 0)
-            {
-                parent.printDataRow(data);
-            }
-        }
-
-        public void printFooterRow ()
-        {
-            parent.printFooterRow();
-        }
-    };
-
     /**
      *
      */
@@ -409,7 +186,7 @@ public class CSVPipe
      * GroupingRowPrinter chains onto a RowPrinter by groupinging columns "print" through it, and "printing" to downstream the combined (strcat) values
      */
     /* HERE */
-    protected class GroupingRowPrinter extends _MergingRowPrinter
+    public class GroupingRowPrinter extends _MergingRowPrinter
     {
         String sep = ":";
 
@@ -509,7 +286,7 @@ public class CSVPipe
      * EpochExpandingRowPrinter chains onto a RowPrinter by expanding epoch (well, millisecond epoch) columns "print" through it, and "printing" to downstream with expanded columns replacing marked epoch column(s)
      */
     /* HERE */
-    protected class EpochExpanderRowPrinter extends _MergingRowPrinter
+    public class EpochExpanderRowPrinter extends _MergingRowPrinter
     {
         java.util.Vector<java.text.SimpleDateFormat>formatters = null;
         String[] labels = null;
@@ -608,7 +385,7 @@ public class CSVPipe
      * ColumnGroupingRowPrinter chains onto a RowPrinter by groupinging columns "print" through it, and "printing" to downstream the combined (add) values
      */
 
-    protected class ColumnGroupingRowPrinter extends GroupingRowPrinter
+    public class ColumnGroupingRowPrinter extends GroupingRowPrinter
     {
         public ColumnGroupingRowPrinter (RowPrinter aParent)
         {
@@ -659,7 +436,7 @@ public class CSVPipe
     /**
      * SummarizingRowPrinter chains onto a RowPrinter by summarizing columns "print" through it, and "printing" to downstream when the row values for aggregation columns (ie keys) change
      */
-    protected class SummarizingRowPrinter extends RowPrinter
+    public class SummarizingRowPrinter extends RowPrinter
     {
         protected RowPrinter parent;
         abstract protected class Aggregate

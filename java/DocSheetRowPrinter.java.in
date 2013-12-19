@@ -1,0 +1,126 @@
+package org.smallfoot.csv;
+
+/**
+ * @file
+ */
+
+//import java.io.FileOutputStream;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.CreationHelper;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.*;
+import org.apache.poi.ss.usermodel.*;
+
+//import javax.activation.DataSource;
+//import javax.activation.URLDataSource;
+//import java.io.BufferedReader;
+//import java.io.FileInputStream;
+//import java.io.FileReader;
+//import java.io.InputStreamReader;
+//import java.io.OutputStream;
+//import java.util.Vector;
+
+
+    /**
+     * DocRowPrinter is a basic pass-thru to a Word Doc page
+     */
+    public class DocSheetRowPrinter extends RowPrinter
+    {
+        //Sheet summary;
+        CellStyle styleHeader;
+        CellStyle styleBody;
+        //CellStyle styleUnknown;
+        //CellStyle styleOK;
+        //CellStyle styleAmber;
+        //CellStyle styleRed;
+        //int row = 0;
+        //FileOutputStream out;
+        //java.util.HashMap<RAG, CellStyle> styles;
+
+        /** singleton: workbook */
+        private CreationHelper _ch = null;
+        /** singleton: workbook */
+        protected CreationHelper getCreationHelper()
+        {
+            if (null == _ch) _ch = target.getWorkbook().getCreationHelper();
+            return _ch;
+        }
+
+
+        int row;
+        short coloffset;
+        Sheet target;
+
+        public DocSheetRowPrinter (Sheet target)
+        {
+            this (target, 0, 0);
+        }
+        public DocSheetRowPrinter (Sheet target, int rowoffset, int coloffset)
+        {
+            this.target = target;
+            this.row = rowoffset;
+            this.coloffset = (short) coloffset;
+
+            styleBody = target.getWorkbook().createCellStyle();
+            //styleBody.setBorderRight(CellStyle.BORDER_THIN);
+            //styleBody.setBorderBottom(CellStyle.BORDER_THIN);
+            //styleBody.setBorderLeft(CellStyle.BORDER_THIN);
+            //styleBody.setBorderTop(CellStyle.BORDER_THIN);
+            styleBody.setVerticalAlignment(CellStyle.VERTICAL_CENTER);
+
+            styleHeader = target.getWorkbook().createCellStyle();
+            styleHeader.cloneStyleFrom(styleBody);
+            styleHeader.setAlignment(CellStyle.ALIGN_CENTER);
+        };
+
+        /**
+         * createTextCell
+         */
+        Cell createTextCell(Row row, CreationHelper ch, short col, String text, CellStyle cellStyle)
+        {
+            Cell c = row.createCell(col, Cell.CELL_TYPE_STRING);
+            if (null != text) c.setCellValue(ch.createRichTextString(text));
+            c.setCellStyle(cellStyle);
+
+            return c;
+        }
+
+        /**
+         * createFloatCell
+         */
+        Cell createTextCell(Row row, CreationHelper ch, short col, float num, CellStyle cellStyle)
+        {
+            Cell c = row.createCell(col, Cell.CELL_TYPE_NUMERIC);
+            c.setCellValue(num);
+            c.setCellStyle(cellStyle);
+
+            return c;
+        }
+
+        public void printHeaderRow (String[] data)
+        {
+            printRowCS(data, styleHeader);
+        }
+        public void printDataRow (String[] data)
+        {
+            printRowCS(data, styleBody);
+        }
+
+        public void printRowCS (String[] data, CellStyle cs)
+        {
+            if (true == checkProperty("debug.RowPrintIn"))
+            {
+                for (String s: data) System.out.print(s+", ");
+                System.out.println("from upstream (CSV)");
+            }
+
+            Row r = target.createRow(row++);
+            for (short i = 0; i < data.length; i++)
+                createTextCell(r, getCreationHelper(), (short) (i + coloffset), data[i], cs);
+        }
+
+        public void printFooterRow ()
+        {
+        }
+    };
+

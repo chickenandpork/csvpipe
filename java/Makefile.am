@@ -1,10 +1,10 @@
-nodist_pkgdata_JAVA = CSVPipe.java
+nodist_pkgdata_JAVA = CSVPipe.java CsvRowPrinter.java DocSheetRowPrinter.java LimitedIntervalsRowPrinter.java RowPrinter.java
 nodist_pkgdata_DATA = @PACKAGE@.jar
 
-EXTRA_DIST = $(nodist_pkgdata_JAVA) CSVPipe.java.in
+EXTRA_DIST = $(nodist_pkgdata_JAVA) CSVPipe.java.in CsvRowPrinter.java.in DocSheetRowPrinter.java.in LimitedIntervalsRowPrinter.java.in
 CONFIG_CLEAN_FILES = @PACKAGE@.jar $(notdir $(subdir)).jar
 
-AM_JAVACFLAGS= -cp $(top_builddir)/depjars/poi-3.8-20120326.jar:$(top_builddir)/depjars/poi-ooxml-3.8-20120326.jar:$(top_builddir)/depjars/xmlbeans-2.3.0.jar:$(top_builddir)/depjars/poi-ooxml-schemas-3.8-20120326.jar:$(top_builddir)/depjars/dom4j-1.6.1.jar:$(top_builddir)/depjars/commons-io-2.3.jar:@GETOPTJAR@
+AM_JAVACFLAGS= -cp $(JAVAROOT):$(top_builddir)/depjars/poi-3.8-20120326.jar:$(top_builddir)/depjars/poi-ooxml-3.8-20120326.jar:$(top_builddir)/depjars/xmlbeans-2.3.0.jar:$(top_builddir)/depjars/poi-ooxml-schemas-3.8-20120326.jar:$(top_builddir)/depjars/dom4j-1.6.1.jar:$(top_builddir)/depjars/commons-io-2.3.jar:@GETOPTJAR@
 
 
 BUILDTMP=$(shell date +%s)
