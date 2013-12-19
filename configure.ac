@@ -149,6 +149,7 @@ AC_SUBST([GETOPTJAR], ${WITH_GETOPTJAR})
 
 
 AC_CONFIG_FILES(Makefile
+  convjars/Makefile 
   depjars/Makefile 
   java/Makefile java/CSVPipe.java java/ColumnGroupingRowPrinter.java java/CsvRowPrinter.java java/DocSheetRowPrinter.java java/EpochExpanderRowPrinter.java java/GroupingRowPrinter.java java/LimitedIntervalsRowPrinter.java java/SummarizingRowPrinter.java
   java/version.java
