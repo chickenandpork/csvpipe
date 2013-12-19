@@ -58,8 +58,6 @@ import java.util.Vector;
 import gnu.getopt.Getopt;
 import gnu.getopt.LongOpt;
 
-/* the following @DO_GETOPTJAR... stuff is explains in the main function */
-/* *@DO_GETOPTJAR_TRUE@/        import org.smallfoot.getopt.GetOpt;	/* */
 
 
 public class CSVPipe
@@ -1125,20 +1123,7 @@ public class CSVPipe
         options.add(new LongOpt("input", LongOpt.REQUIRED_ARGUMENT, null, 'i'));
         options.add(new LongOpt("output", LongOpt.REQUIRED_ARGUMENT, null, 'o'));
 
-
-
-
-        /* the following two @DO_GETOPTJAR... stuff causes either one or the other line's comment
-         * termination to get bombed out -- effectively causing the comment block to continue to
-         * the end of the line, where a comment brace awaits to trap the unterminated comment.
-         * Somewhat like a cartoon rabbit-trap made of a box baited with a carrot, but this trap
-         * causes either one or the other "Getopt g = ..." to be uncommented, effectively honouring
-         * the configure-level --with-getoptjar option at compile-time (well, config.status
-         * -triggered compiler-parser-time)
-         */
-
-        /* *@DO_GETOPTJAR_TRUE@/        GetOpt g = new org.smallfoot.getopt.GetOpt("csvpipe", args, options);        /* */
-        /* *@DO_GETOPTJAR_FALSE@/        Getopt g = new gnu.getopt.Getopt("csvpipe", args, "HVxg::c:m:i:o:", options);        /* */
+        org.smallfoot.getopt.GetOpt g = new org.smallfoot.getopt.GetOpt("csvpipe", args, options);
 
         int c;
         while ((c = g.getopt()) != -1)
@@ -1164,8 +1149,7 @@ public class CSVPipe
                 break;
 
             case 'V':   // spit out the version string
-        /* *@DO_GETOPTJAR_TRUE@/	System.out.println(g.consistentVersion("@VERSION@-$Revision: 559 $")+"\n");		/* */
-        /* *@DO_GETOPTJAR_FALSE@/	System.out.println("@VERSION@-$Revision: 559 $\n");	/* */
+                System.out.println(g.consistentVersion("@VERSION@-$Revision: 559 $")+"\n");
                 return;
 
             default:

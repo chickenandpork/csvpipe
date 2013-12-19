@@ -1,0 +1,12 @@
+*.class
+CSVPipe.java
+Makefile.in
+Makefile
+
+# Package Files #
+*.jar
+*.war
+*.ear
+javaroot.stamp
+classnodist_pkgdata.stamp
+version.java
