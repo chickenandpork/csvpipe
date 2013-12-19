@@ -41,7 +41,7 @@ package org.smallfoot.csv;
      * N! of the CSV issue).  I should have moved back into the XML space from the start, and
      * looked at re-using the transforms I already use.
      */
-    abstract class RowPrinter
+    public abstract class RowPrinter
     {
         abstract public void printHeaderRow (String[] columns);
         abstract public void printDataRow (String[] columns);

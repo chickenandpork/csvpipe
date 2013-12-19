@@ -1,7 +1,7 @@
-nodist_pkgdata_JAVA = CSVPipe.java CsvRowPrinter.java DocSheetRowPrinter.java LimitedIntervalsRowPrinter.java RowPrinter.java
+nodist_pkgdata_JAVA = CSVPipe.java CsvRowPrinter.java DocSheetRowPrinter.java EpochExpanderRowPrinter.java GroupingRowPrinter.java LimitedIntervalsRowPrinter.java MergingRowPrinter.java RowPrinter.java SummarizingRowPrinter.java
 nodist_pkgdata_DATA = @PACKAGE@.jar
 
-EXTRA_DIST = $(nodist_pkgdata_JAVA) CSVPipe.java.in CsvRowPrinter.java.in DocSheetRowPrinter.java.in LimitedIntervalsRowPrinter.java.in
+EXTRA_DIST = $(nodist_pkgdata_JAVA) CSVPipe.java.in CsvRowPrinter.java.in DocSheetRowPrinter.java.in EpochExpanderRowPrinter.java.in GroupingRowPrinter.java.in LimitedIntervalsRowPrinter.java.in SummarizingRowPrinter.java.in
 CONFIG_CLEAN_FILES = @PACKAGE@.jar $(notdir $(subdir)).jar
 
 

@@ -1,0 +1,171 @@
+package org.smallfoot.csv;
+
+/**
+ * @file
+ */
+
+//import org.apache.http.HttpResponse;
+//import org.apache.http.client.HttpClient;
+//import org.apache.http.client.methods.HttpPost;
+//import org.apache.http.conn.ClientConnectionManager;
+//import org.apache.http.conn.scheme.Scheme;
+//import org.apache.http.conn.scheme.SchemeRegistry;
+//import org.apache.http.conn.ssl.SSLSocketFactory;
+//import org.apache.http.entity.StringEntity;
+//import org.apache.http.impl.client.DefaultHttpClient;
+//import org.w3c.dom.Document;
+//import org.w3c.dom.Element;
+//import org.w3c.dom.NodeList;
+
+//import javax.net.ssl.KeyManager;
+//import javax.net.ssl.SSLContext;
+//import javax.net.ssl.TrustManager;
+//import javax.net.ssl.X509TrustManager;
+//import javax.xml.parsers.DocumentBuilder;
+//import javax.xml.parsers.DocumentBuilderFactory;
+//import javax.xml.transform.OutputKeys;
+//import javax.xml.transform.Transformer;
+//import javax.xml.transform.TransformerFactory;
+//import javax.xml.transform.dom.DOMSource;
+//import javax.xml.transform.stream.StreamResult;
+//import javax.xml.XMLConstants;
+//import javax.xml.namespace.QName;
+//import javax.xml.xpath.XPath;
+//import javax.xml.xpath.XPathExpression;
+//import javax.xml.xpath.XPathFactory;
+//import java.io.StringWriter;
+//import java.security.SecureRandom;
+//import java.security.cert.CertificateException;
+//import java.security.cert.X509Certificate;
+
+//import java.io.FileOutputStream;
+//import org.apache.poi.ss.usermodel.WorkbookFactory;
+//import org.apache.poi.ss.usermodel.CreationHelper;
+//import org.apache.poi.ss.util.CellRangeAddress;
+//import org.apache.poi.xssf.usermodel.*;
+//import org.apache.poi.ss.usermodel.*;
+
+//import javax.activation.DataSource;
+//import javax.activation.URLDataSource;
+//import java.io.BufferedReader;
+//import java.io.FileInputStream;
+//import java.io.FileReader;
+//import java.io.InputStreamReader;
+//import java.io.OutputStream;
+//import java.util.Vector;
+import java.util.Date;
+import java.text.SimpleDateFormat;
+import java.util.Vector;
+//import gnu.getopt.Getopt;
+//import gnu.getopt.LongOpt;
+
+
+
+    /**
+     * EpochExpandingRowPrinter chains onto a RowPrinter by expanding epoch (well, millisecond epoch) columns "print" through it, and "printing" to downstream with expanded columns replacing marked epoch column(s)
+     */
+    public class EpochExpanderRowPrinter extends MergingRowPrinter
+    {
+        static public Vector<SimpleDateFormat> defaultFormatters()
+        {
+            Vector<SimpleDateFormat>f = new Vector(1,1);
+
+            f.add(new SimpleDateFormat("yyyy"));
+            f.add(new SimpleDateFormat("MMM"));
+            f.add(new SimpleDateFormat("d"));
+
+            return f;
+        }
+
+
+        Vector<SimpleDateFormat>formatters = null;
+        String[] labels = null;
+
+        public EpochExpanderRowPrinter ()
+        {
+            this(new CsvRowPrinter());
+        }
+        public EpochExpanderRowPrinter (RowPrinter aParent)
+        {
+            this(aParent, defaultFormatters(), "Year,Month,Day".split(","));
+        }
+
+        public EpochExpanderRowPrinter (Vector<SimpleDateFormat>formatters, String[] labels)
+        {
+            this(null, formatters, labels);
+        }
+
+        public EpochExpanderRowPrinter (RowPrinter aParent, Vector<SimpleDateFormat>formatters, String[] labels)
+        {
+            super(aParent);
+            this.formatters = formatters;
+            this.labels = labels;
+        }
+
+        public void printHeaderRow (String[] data)
+        {
+            merge().setSize(data.length);
+
+            super.printHeaderRow(data);
+
+            switch (firstMerge)
+            {
+            case -1: /* unset */ /* passthru */
+            case -2: /* no merge; passthru */
+                parent.printHeaderRow(data);
+                break;
+            default:
+                parent.printHeaderRow(htrim(data));
+                break;
+            }
+        }
+
+
+        protected int outputColumnCount()
+        {
+            int count = 0;
+            for (Boolean b: merge())
+                if (null == b)
+                    count++;
+                else if (false == b)
+                    count++;
+                else
+                    count+= formatters.size(); /* month/Day/Year */
+            return count;
+        }
+
+
+        protected void expand(String col)
+        {
+            super.set(col, true);
+        }
+        protected String[] trim (String[] data)
+        {
+            work = new Vector<String>(outputColumnCount());
+
+            for (int i = 0; i < data.length; i++)
+                if ( (null != merge.get(i)) && (true == merge.get(i)) )
+                {
+                    Date d = new Date(Long.parseLong(data[i]));
+                    for (SimpleDateFormat df: formatters)
+                        work.add(df.format(d));
+                }
+                else
+                    work.add(data[i]);
+
+            return work.toArray(new String[0]);
+        }
+        protected String[] htrim (String[] data)
+        {
+            work = new Vector<String>(outputColumnCount());
+
+            for (int i = 0; i < data.length; i++)
+                if ( (null != merge.get(i)) && (true == merge.get(i)) )
+                    for (String x: labels)
+                        work.add(data[i]+" "+x);
+                else
+                    work.add(data[i]);
+
+            return work.toArray(new String[0]);
+        }
+    }

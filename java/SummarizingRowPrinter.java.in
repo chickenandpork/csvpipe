@@ -1,0 +1,358 @@
+package org.smallfoot.csv;
+
+/**
+ * @file
+ */
+
+//import org.apache.http.HttpResponse;
+//import org.apache.http.client.HttpClient;
+//import org.apache.http.client.methods.HttpPost;
+//import org.apache.http.conn.ClientConnectionManager;
+//import org.apache.http.conn.scheme.Scheme;
+//import org.apache.http.conn.scheme.SchemeRegistry;
+//import org.apache.http.conn.ssl.SSLSocketFactory;
+//import org.apache.http.entity.StringEntity;
+//import org.apache.http.impl.client.DefaultHttpClient;
+//import org.w3c.dom.Document;
+//import org.w3c.dom.Element;
+//import org.w3c.dom.NodeList;
+
+//import javax.net.ssl.KeyManager;
+//import javax.net.ssl.SSLContext;
+//import javax.net.ssl.TrustManager;
+//import javax.net.ssl.X509TrustManager;
+//import javax.xml.parsers.DocumentBuilder;
+//import javax.xml.parsers.DocumentBuilderFactory;
+//import javax.xml.transform.OutputKeys;
+//import javax.xml.transform.Transformer;
+//import javax.xml.transform.TransformerFactory;
+//import javax.xml.transform.dom.DOMSource;
+//import javax.xml.transform.stream.StreamResult;
+//import javax.xml.XMLConstants;
+//import javax.xml.namespace.QName;
+//import javax.xml.xpath.XPath;
+//import javax.xml.xpath.XPathExpression;
+//import javax.xml.xpath.XPathFactory;
+//import java.io.StringWriter;
+//import java.security.SecureRandom;
+//import java.security.cert.CertificateException;
+//import java.security.cert.X509Certificate;
+
+//import java.io.FileOutputStream;
+//import org.apache.poi.ss.usermodel.WorkbookFactory;
+//import org.apache.poi.ss.usermodel.CreationHelper;
+//import org.apache.poi.ss.util.CellRangeAddress;
+//import org.apache.poi.xssf.usermodel.*;
+//import org.apache.poi.ss.usermodel.*;
+
+//import javax.activation.DataSource;
+//import javax.activation.URLDataSource;
+//import java.io.BufferedReader;
+//import java.io.FileInputStream;
+//import java.io.FileReader;
+//import java.io.InputStreamReader;
+//import java.io.OutputStream;
+//import java.util.Vector;
+//import java.util.Calendar;
+import java.util.Vector;
+//import gnu.getopt.Getopt;
+//import gnu.getopt.LongOpt;
+
+
+
+    /**
+     * SummarizingRowPrinter chains onto a RowPrinter by summarizing columns "print" through it, and "printing" to downstream when the row values for aggregation columns (ie keys) change
+     */
+    public class SummarizingRowPrinter extends RowPrinter
+    {
+        protected RowPrinter parent;
+        abstract protected class Aggregate
+        {
+            void setHeader(String s) {};
+            abstract void add(String s);
+            abstract void reset();
+            abstract int width();
+            abstract void writeHeaders(String[] dest, int index);
+            abstract void writeData(String[] dest, int index);
+        };
+
+        protected class CacheAggregate extends Aggregate
+        {
+            boolean clear = true;
+            String header;
+            String value;
+            void reset()
+            {
+                clear = true;
+            }
+            void add (String s)
+            {
+                value = s;
+                clear = false;
+            }
+            int width()
+            {
+                return 1;
+            };
+            void setHeader(String s)
+            {
+                header = s;
+            };
+            void writeHeaders(String[] dest, int index)
+            {
+                dest[index] = header;
+            }
+            void writeData(String[] dest, int index)
+            {
+                dest[index] = value;
+            }
+        };
+
+        protected class SummaryAggregate extends Aggregate
+        {
+            float _min, _max, _accum;
+            int count = 0;
+            String header;
+            void reset()
+            {
+                count = 0;
+            }
+            void add (String s)
+            {
+                float f = Float.parseFloat(s);
+                if (0 == count++)
+                {
+                    _min = f;
+                    _max = f;
+                    _accum = f;
+                }
+                else
+                {
+                    if (f < _min) _min = f;
+                    if (_max < f) _max = f;
+                    _accum += f;
+                }
+            }
+            float min()
+            {
+                if (0 < count) return _min;
+                else return 0;
+            }
+            float max()
+            {
+                if (0 < count) return _max;
+                else return 0;
+            }
+            float ave()
+            {
+                if (0 < count) return _accum / count;
+                else return 0;
+            }
+            int width()
+            {
+                return 3;
+            };
+            void setHeader(String s)
+            {
+                header = s;
+            };
+            void writeHeaders(String[] dest, int index)
+            {
+                dest[index] = "Min "+header;
+                dest[index+1] = "Ave "+header;
+                dest[index+2] = "Max "+header;
+            }
+            void writeData(String[] dest, int index)
+            {
+                dest[index] = new Float(_min).toString();
+                dest[index+1] = new Float(_accum/count).toString();
+                dest[index+2] = new Float(_max).toString();
+            }
+        };
+
+        Vector<Aggregate> ag;
+        String[] work;
+        java.util.Vector<String> futureSummaries = null;	/**< until used during printHeaderRow(), contains not-yet-matched aggregate column numbers */
+        java.util.Vector<String> futureKeys = null;	/**< until used during printHeaderRow(), contains not-yet-matched aggregate keys */
+        Vector<Boolean> keys;
+        String currentKey = null;
+
+        public SummarizingRowPrinter ()
+        {
+            ag = new Vector<Aggregate>(12,1);
+            parent = new CsvRowPrinter();
+        }
+        public SummarizingRowPrinter (RowPrinter aParent)
+        {
+            if (null == aParent) parent = new CsvRowPrinter();    // yes, covering the case of calling it with a null value
+            else parent = aParent;
+            ag = new Vector<Aggregate>(12,1);
+        }
+
+        protected Aggregate set(int index, Aggregate a)
+        {
+            if (index >= ag.size()) ag.setSize(index+1);
+            return ag.set(index, a);
+        }
+        protected void key(int index)
+        {
+            if (null == keys) keys = new Vector(1,1);
+            if (index >= keys.size()) keys.setSize(index+1);
+            keys.set(index, true);
+        }
+        protected void key(String index)
+        {
+            if (null == futureKeys)
+                futureKeys = new java.util.Vector(2,2);
+            futureKeys.add(index);
+        }
+        protected int outputColumnCount()
+        {
+            int count = 0;
+            for (Aggregate a: ag)
+                if (null == a)
+                    count++;
+                else
+                    count+= a.width();
+            return count;
+        }
+
+        /** set the columns for summarizing.  Convenience function. @param colNumber column number to summarize Min/Ave/Max (first column is #0) */
+        public void summarize(int colNumber)
+        {
+            set(colNumber, new SummaryAggregate());
+        }
+
+        /** set the columns for summarizing.  Convenience function. @param colName (future hader) column name to summarize Min/Ave/Max */
+        public void summarize(String colName)
+        {
+            if (null == futureSummaries)
+                futureSummaries = new java.util.Vector(2,2);
+            futureSummaries.add(colName);
+        }
+
+        public void printHeaderRow (String[] data)
+        {
+            if (null != futureSummaries)
+                for (int i = data.length-1; i >= 0; i--)
+                    if (futureSummaries.contains(data[i]))
+                        summarize(i);
+            if (null != futureKeys)
+                for (int i = data.length-1; i >= 0; i--)
+                    if (futureKeys.contains(data[i]))
+                        key(i);
+            futureKeys = null;
+            if (null == keys)
+                for (int i = 0; i < data.length; i++)
+                    if (null == ag.get(i))
+                    {
+                        key(i);
+                        i = data.length;
+                    }
+            if (null == keys) key(0);
+            keys.setSize(data.length);
+
+            // set the working transforms to match the incoming widths
+            if (data.length > ag.size()) ag.setSize(data.length);
+            for (int i = 0; i < ag.size(); i++) if (null == ag.get(i)) set (i, new CacheAggregate());
+            //System.out.println("data width is " + data.length);
+            //System.out.println("aggr width is " + ag.size());
+            //System.out.println("outp width is " + outputColumnCount());
+            // build some output workspace
+            work = new String[outputColumnCount()];
+
+            int colcount = 0;
+            for(int i=0; i<data.length; i++)
+            {
+                Aggregate a;
+
+                if (i >= ag.size())
+                    work[colcount++] = data[i];
+                else if (null == (a = ag.get(i)))
+                    work[colcount++] = data[i];
+                else
+                {
+                    a.setHeader(data[i]);
+                    a.writeHeaders(work, colcount);
+                    colcount += a.width();
+                }
+            }
+            //System.out.println("header 0 is " + data[0]);
+
+            parent.printHeaderRow(work);
+        }
+
+        public void printDataRow (String[] data)
+        {
+            int colcount = 0;
+            String newKey = "";
+
+            // spit out current content
+            for (int i=0; i<data.length; i++) if ( (null != keys.get(i)) && (true == keys.get(i)) )
+                    newKey += "!"+data[i];
+            if (null == currentKey)
+            {
+                //System.out.println("currentKey is null, new value is " + newKey);
+                currentKey = newKey;
+            }
+            else if (! newKey.equals(currentKey))
+            {
+                //System.out.println("currentKey is " + currentKey + ", new value is " + newKey);
+                for(int i=0; i<data.length; i++)
+                {
+                    Aggregate a;
+
+                    if (i >= ag.size())
+                        work[colcount++] = data[i];
+                    else if (null == (a = ag.get(i)))
+                        work[colcount++] = data[i];
+                    else
+                    {
+                        a.writeData(work, colcount);
+                        colcount += a.width();
+                        a.reset();
+                    }
+                }
+
+                parent.printDataRow(work);
+                currentKey = newKey;
+            }
+            //else System.out.println("currentKey is " + currentKey + ", dupe value is " + newKey);
+
+            for(int i=0; i< (data.length <= ag.size() ? data.length : ag.size()); i++)
+            {
+                Aggregate a = ag.get(i);
+                if (null != a) a.add(data[i]);
+            }
+            /*
+            	  if (i >= ag.size())
+            	    work[colcount++] = data[i];
+            	  else if (null == (a = ag.get(i))) ;
+            	  */
+        }
+
+        public void printFooterRow ()
+        {
+            int colcount = 0;
+
+            // spit out current content
+            if (null != currentKey)
+            {
+                //System.out.println("currentKey is " + currentKey + ", footer");
+                for(Aggregate a: ag)
+                {
+                    if (null == a)
+                        work[colcount++] = null;
+                    else
+                    {
+                        a.writeData(work, colcount);
+                        colcount += a.width();
+                        a.reset();
+                    }
+                }
+
+                parent.printDataRow(work);
+            }
+        }
+    };
+

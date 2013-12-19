@@ -68,318 +68,6 @@ public class CSVPipe
 
 
     /**
-     *
-     */
-    protected abstract class _MergingRowPrinter extends RowPrinter
-    {
-        protected RowPrinter parent;
-        Vector<Boolean> merge = null;
-        Vector<Boolean> merge()
-        {
-            if (null == merge) merge = new Vector<Boolean>(1,1);
-            return merge;
-        };
-        Vector<String> work;	/**< until the first merged data row, work contains indices of merged headers that don't parse as array indices -- if it's not a numbe, it's a future column name */
-        int firstMerge = -1;
-
-        public _MergingRowPrinter ()
-        {
-            this(new CsvRowPrinter());
-        }
-        public _MergingRowPrinter (RowPrinter aParent)
-        {
-            if (null == aParent) parent = new CsvRowPrinter();    // yes, covering the case of calling it with a null value
-            else parent = aParent;
-            merge = new Vector<Boolean>(12,1);
-        }
-
-        protected void set(int index, boolean aMerge)
-        {
-            if (index >= merge.size()) merge.setSize(index+1);
-            merge.set(index, aMerge);
-        }
-        protected void set(String index, boolean aMerge)
-        {
-            try
-            {
-                Integer x = new Integer(index);
-                set (x, aMerge);
-            }
-            catch (Exception e)
-            {
-                if (null == work) work = new Vector<String>();
-                work.add(index);
-            }
-        }
-        protected int outputColumnCount()
-        {
-            int res = 1;
-            for (int i = 0; i < merge.size(); i++) if (isMerge(i)) res++;
-            return res;
-        }
-        protected boolean isMerge(int index)
-        {
-            if (null == merge.get(index))
-                return false;
-            boolean res = merge.get(index);
-            return res;
-        }
-
-        /** set the columns for merging.  Convenience function. @param cols column numbers to merge (first column is #0) */
-        protected void mergeKeys(String[] cols)
-        {
-            for (String m: cols) set(m, true);
-        }
-
-        public void printHeaderRow (String[] data)
-        {
-            merge.setSize(data.length);
-
-            if (-1 == firstMerge)
-            {
-                firstMerge = -2;
-                if (null != work)
-                    for (int i = data.length-1; i >= 0; i--)
-                        if (work.contains(data[i]))
-                            merge.set(i, true);
-                for (int i = merge.size()-1; i >= 0; i--)
-                    if (true == isMerge(i))
-                    {
-//System.out.println("Column " + i + " is now first");
-                        firstMerge = i;
-                    }
-            }
-        }
-
-        abstract protected String[] trim (String[] data);
-        {
-        }
-
-        public void printDataRow (String[] data)
-        {
-            if (true == checkProperty("debug.RowPrintIn"))
-            {
-                for (String s: data) System.out.print(s+", ");
-                System.out.println("from upstream (GRP)");
-            }
-
-            switch (firstMerge)
-            {
-            case -2: /* no merge; passthru */
-                parent.printDataRow(data);
-                return ;
-            default:
-                parent.printDataRow(trim(data));
-            }
-        }
-
-        public void printFooterRow ()
-        {
-            parent.printFooterRow();
-        }
-    };
-
-
-    /**
-     * GroupingRowPrinter chains onto a RowPrinter by groupinging columns "print" through it, and "printing" to downstream the combined (strcat) values
-     */
-    /* HERE */
-    public class GroupingRowPrinter extends _MergingRowPrinter
-    {
-        String sep = ":";
-
-        public GroupingRowPrinter ()
-        {
-            this(new CsvRowPrinter());
-        }
-        public GroupingRowPrinter (RowPrinter aParent)
-        {
-            super(aParent);
-        }
-
-        protected void setSeperator(String aSep)
-        {
-            sep = aSep;
-        }
-        protected int outputColumnCount()
-        {
-            int res = 1;
-            for (int i = 0; i < merge.size(); i++) if (isMerge(i)) res++;
-            return res;
-        }
-
-        /** set the columns for grouping.  Convenience function. @param cols column numbers to group (first column is #0) */
-        public void groupKeys(String[] cols)
-        {
-            super.mergeKeys(cols);
-        }
-
-        public void printHeaderRow (String[] data)
-        {
-            merge.setSize(data.length);
-
-            super.printHeaderRow(data);
-
-            switch (firstMerge)
-            {
-            case -1: /* unset */ /* passthru */
-            case -2: /* no merge; passthru */
-                parent.printHeaderRow(data);
-                return ;
-            default:
-                break;
-            }
-
-            parent.printHeaderRow(trim(data));
-        }
-
-        protected String[] trim (String[] data)
-        {
-            work = new Vector<String>(outputColumnCount());
-            for (int i = 0; i < merge.size(); i++)
-            {
-                if (i == firstMerge)
-                    work.add(data[i]);
-                else if (false == isMerge(i))
-                {
-//System.out.println("Column " + i + " copies " + data[i]);
-                    try
-                    {
-                        work.add(data[i]);
-                    }
-                    catch (java.lang.ArrayIndexOutOfBoundsException aioobe)
-                    {
-                        System.out.print   ("data looks like: ");
-                        for (String a: data) System.out.print(a + ", ");
-                        System.out.println("so data index " + i + " greater than length " + data.length);
-                        throw new java.lang.ArrayIndexOutOfBoundsException(aioobe.getMessage() + " described");
-                    }
-//System.out.println("Column " + i + " is now " + work.get(i));
-                }
-                else
-                {
-//System.out.println("Column " + i + " will merge " + data[i] + " to " + work.get(firstMerge));
-                    work.set(firstMerge, work.get(firstMerge)+sep+data[i]);
-                    //work.add(null);
-                }
-            }
-
-            return work.toArray(new String[0]);
-        }
-    };
-
-    static public java.util.Vector<java.text.SimpleDateFormat> defaultFormatters()
-    {
-        java.util.Vector<java.text.SimpleDateFormat>f = new java.util.Vector(1,1);
-
-        f.add(new java.text.SimpleDateFormat("yyyy"));
-        f.add(new java.text.SimpleDateFormat("MMM"));
-        f.add(new java.text.SimpleDateFormat("d"));
-
-        return f;
-    }
-
-
-    /**
-     * EpochExpandingRowPrinter chains onto a RowPrinter by expanding epoch (well, millisecond epoch) columns "print" through it, and "printing" to downstream with expanded columns replacing marked epoch column(s)
-     */
-    /* HERE */
-    public class EpochExpanderRowPrinter extends _MergingRowPrinter
-    {
-        java.util.Vector<java.text.SimpleDateFormat>formatters = null;
-        String[] labels = null;
-
-        public EpochExpanderRowPrinter ()
-        {
-            this(new CsvRowPrinter());
-        }
-        public EpochExpanderRowPrinter (RowPrinter aParent)
-        {
-            this(aParent, defaultFormatters(), "Year,Month,Day".split(","));
-        }
-
-        public EpochExpanderRowPrinter (java.util.Vector<java.text.SimpleDateFormat>formatters, String[] labels)
-        {
-            this(null, formatters, labels);
-        }
-
-        public EpochExpanderRowPrinter (RowPrinter aParent, java.util.Vector<java.text.SimpleDateFormat>formatters, String[] labels)
-        {
-            super(aParent);
-            this.formatters = formatters;
-            this.labels = labels;
-        }
-
-        public void printHeaderRow (String[] data)
-        {
-            merge().setSize(data.length);
-
-            super.printHeaderRow(data);
-
-            switch (firstMerge)
-            {
-            case -1: /* unset */ /* passthru */
-            case -2: /* no merge; passthru */
-                parent.printHeaderRow(data);
-                break;
-            default:
-                parent.printHeaderRow(htrim(data));
-                break;
-            }
-        }
-
-
-        protected int outputColumnCount()
-        {
-            int count = 0;
-            for (Boolean b: merge())
-                if (null == b)
-                    count++;
-                else if (false == b)
-                    count++;
-                else
-                    count+= formatters.size(); /* month/Day/Year */
-            return count;
-        }
-
-
-        protected void expand(String col)
-        {
-            super.set(col, true);
-        }
-        protected String[] trim (String[] data)
-        {
-            work = new Vector<String>(outputColumnCount());
-
-            for (int i = 0; i < data.length; i++)
-                if ( (null != merge.get(i)) && (true == merge.get(i)) )
-                {
-                    java.util.Date d = new java.util.Date(Long.parseLong(data[i]));
-                    for (java.text.SimpleDateFormat df: formatters)
-                        work.add(df.format(d));
-                }
-                else
-                    work.add(data[i]);
-
-            return work.toArray(new String[0]);
-        }
-        protected String[] htrim (String[] data)
-        {
-            work = new Vector<String>(outputColumnCount());
-
-            for (int i = 0; i < data.length; i++)
-                if ( (null != merge.get(i)) && (true == merge.get(i)) )
-                    for (String x: labels)
-                        work.add(data[i]+" "+x);
-                else
-                    work.add(data[i]);
-
-            return work.toArray(new String[0]);
-        }
-    };
-
-
-    /**
      * ColumnGroupingRowPrinter chains onto a RowPrinter by groupinging columns "print" through it, and "printing" to downstream the combined (add) values
      */
 
@@ -827,7 +515,7 @@ public class CSVPipe
         /* second sheet is just raw utilization */
         try
         {
-            java.util.Vector<java.text.SimpleDateFormat>df = defaultFormatters();
+            java.util.Vector<java.text.SimpleDateFormat>df = EpochExpanderRowPrinter.defaultFormatters();
             df.add(new java.text.SimpleDateFormat("hh"));
             EpochExpanderRowPrinter erp = new EpochExpanderRowPrinter(new DocSheetRowPrinter(getSheet("data.Util.t.All")), df, "Year,Month,Day,Hour".split(","));
 
@@ -917,7 +605,7 @@ public class CSVPipe
             erp.expand("Time (ms)");
             return erp;
         case TEST_EPOCH_YMDH_1:	/* build a test page: expand the time value into Year/Month/Day/Hour */
-            java.util.Vector<java.text.SimpleDateFormat>f = defaultFormatters();
+            java.util.Vector<java.text.SimpleDateFormat>f = EpochExpanderRowPrinter.defaultFormatters();
             f.add(new java.text.SimpleDateFormat("hh"));
             erp = new EpochExpanderRowPrinter(f, "Year,Month,Day,Hour".split(","));
             erp.expand("Time (ms)");
@@ -927,7 +615,7 @@ public class CSVPipe
             rp = new DocSheetRowPrinter(getSheet("data.Health.Phys"));
             /* intentional fall-thru */
         case TEST_HEALTH_PHYS_1:
-            java.util.Vector<java.text.SimpleDateFormat>df = defaultFormatters();
+            java.util.Vector<java.text.SimpleDateFormat>df = EpochExpanderRowPrinter.defaultFormatters();
             df.add(new java.text.SimpleDateFormat("hh"));
             erp = new EpochExpanderRowPrinter(rp, df, "Year,Month,Day,Hour".split(","));
             erp.expand("Time (ms)");
@@ -935,7 +623,7 @@ public class CSVPipe
             cgrp.groupKeys("Loss of Sync Events,Loss of Signal Events,Link Resets,Link Failures,CRC Errors,Class 3 Discards".split(","));
             return cgrp;
         case UTIL_YMDH_1:
-            df = defaultFormatters();
+            df = EpochExpanderRowPrinter.defaultFormatters();
             df.add(new java.text.SimpleDateFormat("hh"));
             erp = new EpochExpanderRowPrinter(new DocSheetRowPrinter(getSheet("data.Util.t.All")), df, "Year,Month,Day,Hour".split(","));
             erp.expand("Time (ms)");
@@ -950,7 +638,7 @@ public class CSVPipe
             srp.key("Attached Port WWN");
             srp.key("Time (ms) Week");
             //srp.key("Date/Time");
-            df = defaultFormatters();
+            df = EpochExpanderRowPrinter.defaultFormatters();
             df.add(new java.text.SimpleDateFormat("w"));
             erp = new EpochExpanderRowPrinter(srp, df, "Year,Month,Day,Week".split(","));
             erp.expand("Time (ms)");
