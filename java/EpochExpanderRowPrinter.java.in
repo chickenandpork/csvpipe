@@ -10,111 +10,111 @@ import java.util.Vector;
 
 
 
-    /**
-     * EpochExpandingRowPrinter chains onto a RowPrinter by expanding epoch (well, millisecond epoch) columns "print" through it, and "printing" to downstream with expanded columns replacing marked epoch column(s)
-     */
-    public class EpochExpanderRowPrinter extends MergingRowPrinter
+/**
+ * EpochExpandingRowPrinter chains onto a RowPrinter by expanding epoch (well, millisecond epoch) columns "print" through it, and "printing" to downstream with expanded columns replacing marked epoch column(s)
+ */
+public class EpochExpanderRowPrinter extends MergingRowPrinter
+{
+    static public Vector<SimpleDateFormat> defaultFormatters()
     {
-        static public Vector<SimpleDateFormat> defaultFormatters()
+        Vector<SimpleDateFormat>f = new Vector(1,1);
+
+        f.add(new SimpleDateFormat("yyyy"));
+        f.add(new SimpleDateFormat("MMM"));
+        f.add(new SimpleDateFormat("d"));
+
+        return f;
+    }
+
+
+    Vector<SimpleDateFormat>formatters = null;
+    String[] labels = null;
+
+    public EpochExpanderRowPrinter ()
+    {
+        this(new CsvRowPrinter());
+    }
+    public EpochExpanderRowPrinter (RowPrinter aParent)
+    {
+        this(aParent, defaultFormatters(), "Year,Month,Day".split(","));
+    }
+
+    public EpochExpanderRowPrinter (Vector<SimpleDateFormat>formatters, String[] labels)
+    {
+        this(null, formatters, labels);
+    }
+
+    public EpochExpanderRowPrinter (RowPrinter aParent, Vector<SimpleDateFormat>formatters, String[] labels)
+    {
+        super(aParent);
+        this.formatters = formatters;
+        this.labels = labels;
+    }
+
+    public void printHeaderRow (String[] data)
+    {
+        merge().setSize(data.length);
+
+        super.printHeaderRow(data);
+
+        switch (firstMerge)
         {
-            Vector<SimpleDateFormat>f = new Vector(1,1);
-
-            f.add(new SimpleDateFormat("yyyy"));
-            f.add(new SimpleDateFormat("MMM"));
-            f.add(new SimpleDateFormat("d"));
-
-            return f;
-        }
-
-
-        Vector<SimpleDateFormat>formatters = null;
-        String[] labels = null;
-
-        public EpochExpanderRowPrinter ()
-        {
-            this(new CsvRowPrinter());
-        }
-        public EpochExpanderRowPrinter (RowPrinter aParent)
-        {
-            this(aParent, defaultFormatters(), "Year,Month,Day".split(","));
-        }
-
-        public EpochExpanderRowPrinter (Vector<SimpleDateFormat>formatters, String[] labels)
-        {
-            this(null, formatters, labels);
-        }
-
-        public EpochExpanderRowPrinter (RowPrinter aParent, Vector<SimpleDateFormat>formatters, String[] labels)
-        {
-            super(aParent);
-            this.formatters = formatters;
-            this.labels = labels;
-        }
-
-        public void printHeaderRow (String[] data)
-        {
-            merge().setSize(data.length);
-
-            super.printHeaderRow(data);
-
-            switch (firstMerge)
-            {
-            case -1: /* unset */ /* passthru */
-            case -2: /* no merge; passthru */
-                parent.printHeaderRow(data);
-                break;
-            default:
-                parent.printHeaderRow(htrim(data));
-                break;
-            }
-        }
-
-
-        protected int outputColumnCount()
-        {
-            int count = 0;
-            for (Boolean b: merge())
-                if (null == b)
-                    count++;
-                else if (false == b)
-                    count++;
-                else
-                    count+= formatters.size(); /* month/Day/Year */
-            return count;
-        }
-
-
-        protected void expand(String col)
-        {
-            super.set(col, true);
-        }
-        protected String[] trim (String[] data)
-        {
-            work = new Vector<String>(outputColumnCount());
-
-            for (int i = 0; i < data.length; i++)
-                if ( (null != merge.get(i)) && (true == merge.get(i)) )
-                {
-                    Date d = new Date(Long.parseLong(data[i]));
-                    for (SimpleDateFormat df: formatters)
-                        work.add(df.format(d));
-                }
-                else
-                    work.add(data[i]);
-
-            return work.toArray(new String[0]);
-        }
-        protected String[] htrim (String[] data)
-        {
-            work = new Vector<String>(outputColumnCount());
-
-            for (int i = 0; i < data.length; i++)
-                if ( (null != merge.get(i)) && (true == merge.get(i)) )
-                    for (String x: labels)
-                        work.add(data[i]+" "+x);
-                else
-                    work.add(data[i]);
-
-            return work.toArray(new String[0]);
+        case -1: /* unset */ /* passthru */
+        case -2: /* no merge; passthru */
+            parent.printHeaderRow(data);
+            break;
+        default:
+            parent.printHeaderRow(htrim(data));
+            break;
         }
     }
+
+
+    protected int outputColumnCount()
+    {
+        int count = 0;
+for (Boolean b: merge())
+            if (null == b)
+                count++;
+            else if (false == b)
+                count++;
+            else
+                count+= formatters.size(); /* month/Day/Year */
+        return count;
+    }
+
+
+    protected void expand(String col)
+    {
+        super.set(col, true);
+    }
+    protected String[] trim (String[] data)
+    {
+        work = new Vector<String>(outputColumnCount());
+
+        for (int i = 0; i < data.length; i++)
+            if ( (null != merge.get(i)) && (true == merge.get(i)) )
+            {
+                Date d = new Date(Long.parseLong(data[i]));
+for (SimpleDateFormat df: formatters)
+                    work.add(df.format(d));
+            }
+            else
+                work.add(data[i]);
+
+        return work.toArray(new String[0]);
+    }
+    protected String[] htrim (String[] data)
+    {
+        work = new Vector<String>(outputColumnCount());
+
+        for (int i = 0; i < data.length; i++)
+            if ( (null != merge.get(i)) && (true == merge.get(i)) )
+for (String x: labels)
+                    work.add(data[i]+" "+x);
+            else
+                work.add(data[i]);
+
+        return work.toArray(new String[0]);
+    }
+}

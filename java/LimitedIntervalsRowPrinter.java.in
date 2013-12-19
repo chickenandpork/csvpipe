@@ -4,54 +4,54 @@ package org.smallfoot.csv;
  * @file
  */
 
-    /**
-     * LimitedIntervalsRowPrinter is a basic pass-thru but shunts further passes after a certain number have gone through
-     */
-    public class LimitedIntervalsRowPrinter extends RowPrinter
+/**
+ * LimitedIntervalsRowPrinter is a basic pass-thru but shunts further passes after a certain number have gone through
+ */
+public class LimitedIntervalsRowPrinter extends RowPrinter
+{
+    protected RowPrinter parent;
+    protected int maxIntervals = Integer.MAX_VALUE;
+
+    public LimitedIntervalsRowPrinter (RowPrinter aParent)
     {
-        protected RowPrinter parent;
-        protected int maxIntervals = Integer.MAX_VALUE;
+        if (null == aParent) parent = new CsvRowPrinter();    // yes, covering the case of calling it with a null value
+        else parent = aParent;
+    }
+    public LimitedIntervalsRowPrinter (RowPrinter aParent, int maxint)
+    {
+        if (null == aParent) parent = new CsvRowPrinter();
+        else parent = aParent;
+        maxIntervals = maxint;
+    }
 
-        public LimitedIntervalsRowPrinter (RowPrinter aParent)
-        {
-            if (null == aParent) parent = new CsvRowPrinter();    // yes, covering the case of calling it with a null value
-            else parent = aParent;
-        }
-        public LimitedIntervalsRowPrinter (RowPrinter aParent, int maxint)
-        {
-            if (null == aParent) parent = new CsvRowPrinter();
-            else parent = aParent;
-            maxIntervals = maxint;
-        }
+    public void printHeaderRow (String[] data)
+    {
+        parent.printHeaderRow(data);
+    }
 
-        public void printHeaderRow (String[] data)
+    public void printDataRow (String[] data)
+    {
+        if (true == checkProperty("debug.RowPrintIn"))
         {
-            parent.printHeaderRow(data);
-        }
-
-        public void printDataRow (String[] data)
-        {
-            if (true == checkProperty("debug.RowPrintIn"))
-            {
-                for (String s: data) System.out.print(s+", ");
-                System.out.println(" from upstream (LIRP)");
-            }
-
-            if (true == checkProperty("debug.RowPrintOut"))
-            {
-                System.out.print("maxIntervals is " + maxIntervals + " therefore " + ((maxIntervals > 0) ? "" : "not ") + "sending ");
-                for (String s: data) System.out.print(s+", ");
-                System.out.println(" to downstream (LIRP)");
-            }
-            if (maxIntervals-- >= 0)
-            {
-                parent.printDataRow(data);
-            }
+for (String s: data) System.out.print(s+", ");
+            System.out.println(" from upstream (LIRP)");
         }
 
-        public void printFooterRow ()
+        if (true == checkProperty("debug.RowPrintOut"))
         {
-            parent.printFooterRow();
+            System.out.print("maxIntervals is " + maxIntervals + " therefore " + ((maxIntervals > 0) ? "" : "not ") + "sending ");
+for (String s: data) System.out.print(s+", ");
+            System.out.println(" to downstream (LIRP)");
         }
-    };
+        if (maxIntervals-- >= 0)
+        {
+            parent.printDataRow(data);
+        }
+    }
+
+    public void printFooterRow ()
+    {
+        parent.printFooterRow();
+    }
+};
 

@@ -4,30 +4,30 @@ package org.smallfoot.csv;
  * @file
  */
 
-    /**
-     * CsvRowPrinter is the default method of printing: just spit it out
-     */
-    public class CsvRowPrinter extends RowPrinter
+/**
+ * CsvRowPrinter is the default method of printing: just spit it out
+ */
+public class CsvRowPrinter extends RowPrinter
+{
+    public void printHeaderRow (String[] data)
     {
-        public void printHeaderRow (String[] data)
-        {
-            printDataRow(data);
-        }
+        printDataRow(data);
+    }
 
-        public void printDataRow (String[] data)
+    public void printDataRow (String[] data)
+    {
+        if (true == checkProperty("debug.RowPrintIn"))
         {
-            if (true == checkProperty("debug.RowPrintIn"))
-            {
-                for (String s: data) System.out.print(s+", ");
-                System.out.println("from upstream (CSV)");
-            }
-            for(int i=0; i<data.length; i++)
-            {
-                System.out.print(data[i]);
-                if(i < data.length - 1)
-                    System.out.print(",");
-            }
-            System.out.println();
+for (String s: data) System.out.print(s+", ");
+            System.out.println("from upstream (CSV)");
         }
-        public void printFooterRow () {};
-    };
+        for(int i=0; i<data.length; i++)
+        {
+            System.out.print(data[i]);
+            if(i < data.length - 1)
+                System.out.print(",");
+        }
+        System.out.println();
+    }
+    public void printFooterRow () {};
+};

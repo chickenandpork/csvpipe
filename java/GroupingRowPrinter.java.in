@@ -8,90 +8,90 @@ import java.util.Vector;
 
 
 
-    /**
-     * GroupingRowPrinter chains onto a RowPrinter by groupinging columns "print" through it, and "printing" to downstream the combined (strcat) values
-     */
-    /* HERE */
-    public class GroupingRowPrinter extends MergingRowPrinter
+/**
+ * GroupingRowPrinter chains onto a RowPrinter by groupinging columns "print" through it, and "printing" to downstream the combined (strcat) values
+ */
+/* HERE */
+public class GroupingRowPrinter extends MergingRowPrinter
+{
+    String sep = ":";
+
+    public GroupingRowPrinter ()
     {
-        String sep = ":";
-
-        public GroupingRowPrinter ()
-        {
-            this(new CsvRowPrinter());
-        }
-        public GroupingRowPrinter (RowPrinter aParent)
-        {
-            super(aParent);
-        }
-
-        protected void setSeperator(String aSep)
-        {
-            sep = aSep;
-        }
-        protected int outputColumnCount()
-        {
-            int res = 1;
-            for (int i = 0; i < merge.size(); i++) if (isMerge(i)) res++;
-            return res;
-        }
-
-        /** set the columns for grouping.  Convenience function. @param cols column numbers to group (first column is #0) */
-        public void groupKeys(String[] cols)
-        {
-            super.mergeKeys(cols);
-        }
-
-        public void printHeaderRow (String[] data)
-        {
-            merge.setSize(data.length);
-
-            super.printHeaderRow(data);
-
-            switch (firstMerge)
-            {
-            case -1: /* unset */ /* passthru */
-            case -2: /* no merge; passthru */
-                parent.printHeaderRow(data);
-                return ;
-            default:
-                break;
-            }
-
-            parent.printHeaderRow(trim(data));
-        }
-
-        protected String[] trim (String[] data)
-        {
-            work = new Vector<String>(outputColumnCount());
-            for (int i = 0; i < merge.size(); i++)
-            {
-                if (i == firstMerge)
-                    work.add(data[i]);
-                else if (false == isMerge(i))
-                {
-//System.out.println("Column " + i + " copies " + data[i]);
-                    try
-                    {
-                        work.add(data[i]);
-                    }
-                    catch (java.lang.ArrayIndexOutOfBoundsException aioobe)
-                    {
-                        System.out.print   ("data looks like: ");
-                        for (String a: data) System.out.print(a + ", ");
-                        System.out.println("so data index " + i + " greater than length " + data.length);
-                        throw new java.lang.ArrayIndexOutOfBoundsException(aioobe.getMessage() + " described");
-                    }
-//System.out.println("Column " + i + " is now " + work.get(i));
-                }
-                else
-                {
-//System.out.println("Column " + i + " will merge " + data[i] + " to " + work.get(firstMerge));
-                    work.set(firstMerge, work.get(firstMerge)+sep+data[i]);
-                    //work.add(null);
-                }
-            }
-
-            return work.toArray(new String[0]);
-        }
+        this(new CsvRowPrinter());
     }
+    public GroupingRowPrinter (RowPrinter aParent)
+    {
+        super(aParent);
+    }
+
+    protected void setSeperator(String aSep)
+    {
+        sep = aSep;
+    }
+    protected int outputColumnCount()
+    {
+        int res = 1;
+        for (int i = 0; i < merge.size(); i++) if (isMerge(i)) res++;
+        return res;
+    }
+
+    /** set the columns for grouping.  Convenience function. @param cols column numbers to group (first column is #0) */
+    public void groupKeys(String[] cols)
+    {
+        super.mergeKeys(cols);
+    }
+
+    public void printHeaderRow (String[] data)
+    {
+        merge.setSize(data.length);
+
+        super.printHeaderRow(data);
+
+        switch (firstMerge)
+        {
+        case -1: /* unset */ /* passthru */
+        case -2: /* no merge; passthru */
+            parent.printHeaderRow(data);
+            return ;
+        default:
+            break;
+        }
+
+        parent.printHeaderRow(trim(data));
+    }
+
+    protected String[] trim (String[] data)
+    {
+        work = new Vector<String>(outputColumnCount());
+        for (int i = 0; i < merge.size(); i++)
+        {
+            if (i == firstMerge)
+                work.add(data[i]);
+            else if (false == isMerge(i))
+            {
+//System.out.println("Column " + i + " copies " + data[i]);
+                try
+                {
+                    work.add(data[i]);
+                }
+                catch (java.lang.ArrayIndexOutOfBoundsException aioobe)
+                {
+                    System.out.print   ("data looks like: ");
+for (String a: data) System.out.print(a + ", ");
+                    System.out.println("so data index " + i + " greater than length " + data.length);
+                    throw new java.lang.ArrayIndexOutOfBoundsException(aioobe.getMessage() + " described");
+                }
+//System.out.println("Column " + i + " is now " + work.get(i));
+            }
+            else
+            {
+//System.out.println("Column " + i + " will merge " + data[i] + " to " + work.get(firstMerge));
+                work.set(firstMerge, work.get(firstMerge)+sep+data[i]);
+                //work.add(null);
+            }
+        }
+
+        return work.toArray(new String[0]);
+    }
+}
