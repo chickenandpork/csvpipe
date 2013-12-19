@@ -362,23 +362,23 @@ public class CSVPipe
 
         rowPrinter = getPreset (PRESET.TEST_MINMAXAVG_YMD_1);
         getRowPrinter().printHeaderRow("Port Number,Port Module Number,Attached Port WWN,Attached Port Name,Attached Device Type,Channel,Fabric,Environment,Probe Serial Number,Probe Name,Frame / Sec,Total Capacity %,Zero Buffer-to-Buffer Credit Information,Date/Time,Time (ms)".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 16:00:00 PST 2013,1359763200000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 17:00:00 PST 2013,1359766800000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 18:00:00 PST 2013,1359770400000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 19:00:00 PST 2013,1359774000000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 20:00:00 PST 2013,1359777600000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 21:00:00 PST 2013,1359781200000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 22:00:00 PST 2013,1359784800000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Fri Feb 01 23:00:00 PST 2013,1359788400000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Sun Feb 03 20:00:00 PST 2013,1359950400000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Sun Feb 03 21:00:00 PST 2013,1359954000000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Sun Feb 03 22:00:00 PST 2013,1359957600000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Sun Feb 03 23:00:00 PST 2013,1359961200000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Mon Feb 04 00:00:00 PST 2013,1359964800000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Mon Feb 04 01:00:00 PST 2013,1359968400000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Mon Feb 04 02:00:00 PST 2013,1359972000000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Mon Feb 04 03:00:00 PST 2013,1359975600000".split(","));
-        getRowPrinter().printDataRow("2,N/A,10000000c9806a43,0x280200,Server,Ch 1,SN1 FAB B,SN1,1978178686,SN1ADC-USE841FT7N-B,0,0,0,Mon Feb 04 04:00:00 PST 2013,1359979200000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Fri Feb 01 16:00:00 PST 2013,1359763200000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Fri Feb 01 17:00:00 PST 2013,1359766800000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Fri Feb 01 18:00:00 PST 2013,1359770400000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Fri Feb 01 19:00:00 PST 2013,1359774000000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Fri Feb 01 20:00:00 PST 2013,1359777600000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Fri Feb 01 21:00:00 PST 2013,1359781200000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Fri Feb 01 22:00:00 PST 2013,1359784800000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Fri Feb 01 23:00:00 PST 2013,1359788400000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Sun Feb 03 20:00:00 PST 2013,1359950400000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Sun Feb 03 21:00:00 PST 2013,1359954000000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Sun Feb 03 22:00:00 PST 2013,1359957600000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Sun Feb 03 23:00:00 PST 2013,1359961200000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Mon Feb 04 00:00:00 PST 2013,1359964800000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Mon Feb 04 01:00:00 PST 2013,1359968400000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Mon Feb 04 02:00:00 PST 2013,1359972000000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Mon Feb 04 03:00:00 PST 2013,1359975600000".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Mon Feb 04 04:00:00 PST 2013,1359979200000".split(","));
         getRowPrinter().printFooterRow();
 
     }
@@ -447,7 +447,7 @@ public class CSVPipe
                 break;
 
             case 'V':   // spit out the version string
-                System.out.println(g.consistentVersion("@VERSION@-$Revision: 559 $")+"\n");
+                System.out.println(g.consistentVersion("@VERSION@-@BUILDID@")+"\n");
                 return;
 
             default:
