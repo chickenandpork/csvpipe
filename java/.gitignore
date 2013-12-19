@@ -1,7 +1,15 @@
 *.class
+version.java
 CSVPipe.java
+CsvRowPrinter.java
+DocSheetRowPrinter.java
+EpochExpanderRowPrinter.java
+GroupingRowPrinter.java
+LimitedIntervalsRowPrinter.java
 Makefile.in
 Makefile
+MergingRowPrinter.java
+SummarizingRowPrinter.java
 
 # Package Files #
 *.jar
@@ -9,4 +17,3 @@ Makefile
 *.ear
 javaroot.stamp
 classnodist_pkgdata.stamp
-version.java

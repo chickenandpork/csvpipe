@@ -1,11 +1,13 @@
 #generated buildproc
-commons-lang3-3.1-bin.zip
-commons-net-3.1-bin.zip
 Makefile
 Makefile.in
-commons-net-3.3-bin.zip
-commons-net-ssh-read-only
-jzlib-1.1.2.zip
-log4j-1.2.17.zip
-slf4j-1.7.5.zip
-ftp4j-1.7.1.zip
+commons-io-2.3.jar
+dom4j-1.6.1.jar
+poi-3.8-20120326.jar
+poi-ooxml-3.8-20120326.jar
+poi-ooxml-schemas-3.8-20120326.jar
+xmlbeans-2.3.0.jar
+
+# remote resources
+commons-io-2.3-bin.tar.gz
+poi-bin-3.8-20120326.tar.gz
