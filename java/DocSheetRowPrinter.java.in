@@ -4,21 +4,11 @@ package org.smallfoot.csv;
  * @file
  */
 
-//import java.io.FileOutputStream;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.ss.usermodel.CreationHelper;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.*;
 import org.apache.poi.ss.usermodel.*;
-
-//import javax.activation.DataSource;
-//import javax.activation.URLDataSource;
-//import java.io.BufferedReader;
-//import java.io.FileInputStream;
-//import java.io.FileReader;
-//import java.io.InputStreamReader;
-//import java.io.OutputStream;
-//import java.util.Vector;
 
 
     /**
@@ -26,16 +16,8 @@ import org.apache.poi.ss.usermodel.*;
      */
     public class DocSheetRowPrinter extends RowPrinter
     {
-        //Sheet summary;
         CellStyle styleHeader;
         CellStyle styleBody;
-        //CellStyle styleUnknown;
-        //CellStyle styleOK;
-        //CellStyle styleAmber;
-        //CellStyle styleRed;
-        //int row = 0;
-        //FileOutputStream out;
-        //java.util.HashMap<RAG, CellStyle> styles;
 
         /** singleton: workbook */
         private CreationHelper _ch = null;
@@ -62,10 +44,6 @@ import org.apache.poi.ss.usermodel.*;
             this.coloffset = (short) coloffset;
 
             styleBody = target.getWorkbook().createCellStyle();
-            //styleBody.setBorderRight(CellStyle.BORDER_THIN);
-            //styleBody.setBorderBottom(CellStyle.BORDER_THIN);
-            //styleBody.setBorderLeft(CellStyle.BORDER_THIN);
-            //styleBody.setBorderTop(CellStyle.BORDER_THIN);
             styleBody.setVerticalAlignment(CellStyle.VERTICAL_CENTER);
 
             styleHeader = target.getWorkbook().createCellStyle();
