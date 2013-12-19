@@ -10,6 +10,8 @@ Makefile.in
 Makefile
 MergingRowPrinter.java
 SummarizingRowPrinter.java
+*.java.orig
+*.java.in.orig
 
 # Package Files #
 *.jar

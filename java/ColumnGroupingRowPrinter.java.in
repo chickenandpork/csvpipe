@@ -1,0 +1,61 @@
+package org.smallfoot.csv;
+
+/**
+ * @file
+ */
+
+import java.util.Vector;
+
+
+
+/**
+ * ColumnGroupingRowPrinter chains onto a RowPrinter by groupinging columns "print" through it, and "printing" to downstream the combined (add) values
+ */
+
+public class ColumnGroupingRowPrinter extends GroupingRowPrinter
+{
+    public ColumnGroupingRowPrinter (RowPrinter aParent)
+    {
+        super(aParent);
+    }
+
+    protected String[] trim (String[] data)
+    {
+        work = new Vector<String>(outputColumnCount());
+        for (int i = 0; i < merge.size(); i++)
+        {
+            if (i == firstMerge)
+                work.add(data[i]);
+            else if (false == isMerge(i))
+            {
+//System.out.println("Column " + i + " copies " + data[i]);
+                try
+                {
+                    work.add(data[i]);
+                }
+                catch (java.lang.ArrayIndexOutOfBoundsException aioobe)
+                {
+                    System.out.print   ("data looks like: ");
+for (String a: data) System.out.print(a + ", ");
+                    System.out.println("so data index " + i + " greater than length " + data.length);
+                    throw new java.lang.ArrayIndexOutOfBoundsException(aioobe.getMessage() + " described");
+                }
+//System.out.println("Column " + i + " is now " + work.get(i));
+            }
+            else
+            {
+//System.out.println("Column " + i + " will merge " + data[i] + " to " + work.get(firstMerge));
+                try
+                {
+                    work.set(firstMerge, String.format("%f",Float.parseFloat(work.get(firstMerge))+Float.parseFloat(data[i])));
+                }
+                catch (java.lang.NumberFormatException nfe)
+                {
+                    work.set(firstMerge, work.get(firstMerge)+sep+data[i]);
+                }
+            }
+        }
+
+        return work.toArray(new String[0]);
+    }
+};
