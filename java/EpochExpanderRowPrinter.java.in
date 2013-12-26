@@ -84,7 +84,7 @@ for (Boolean b: merge())
     }
 
 
-    protected void expand(String col)
+    public void expand(String col)
     {
         super.set(col, true);
     }
