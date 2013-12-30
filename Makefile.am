@@ -19,7 +19,7 @@ doc: Doxyfile
 endif
 
 if DO_ASTYLE
-formatting: java/CSVPipe.java.in java/ColumnGroupingRowPrinter.java.in java/CsvRowPrinter.java.in java/DocSheetRowPrinter.java.in java/EpochExpanderRowPrinter.java.in java/GroupingRowPrinter.java.in java/LimitedIntervalsRowPrinter.java.in java/MergingRowPrinter.java java/RowPrinter.java java/SummarizingRowPrinter.java.in java/version.java.in
+formatting: java/CSVPipe.java.in java/ColumnGroupingRowPrinter.java.in java/CsvRowPrinter.java.in java/DocSheetRowPrinter.java.in java/EpochExpanderRowPrinter.java.in java/GroupingRowPrinter.java.in java/LimitedIntervalsRowPrinter.java.in java/MergingRowPrinter.java java/NoCapHeader.java java/RowPrinter.java java/SummarizingRowPrinter.java.in java/version.java.in
 if DO_GITFORMATTING
 	@git ls-files --other --exclude-standard --directory || { echo "###################### unignored local files: git add, git commit ?"; }
 	@git diff --exit-code || { echo "###################### unstaged changes: git commit -a"; exit 1; }
