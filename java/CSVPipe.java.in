@@ -170,7 +170,7 @@ public class CSVPipe
         TEST_EPOCH_YMD_1	/**< build a test page: expand the time value into Year/Month/Day */	,
         TEST_EPOCH_YMDH_1	/**< build a test page: expand the time value into Year/Month/Day/Hour */	,
         TEST_EPOCH_YM_1		/**< build a test page: expand the time value into single Year-Month */		,
-	TEST_HEADERNOCAP_1	/**< build a test page: replace the "Capacity %" with "% Utilization" */
+        TEST_HEADERNOCAP_1	/**< build a test page: replace the "Capacity %" with "% Utilization" */
     };
 
     protected RowPrinter getPreset (PRESET p)
@@ -241,7 +241,7 @@ public class CSVPipe
             cgrp.groupKeys("Loss of Sync Events,Loss of Signal Events,Link Resets,Link Failures,CRC Errors,Class 3 Discards".split(","));
             return cgrp;
         case TEST_HEADERNOCAP_1:
-	    return new NoCapHeader();
+            return new NoCapHeader();
         case UTIL_YMDH_1:
             df = EpochExpanderRowPrinter.defaultFormatters();
             df.add(new java.text.SimpleDateFormat("hh"));
