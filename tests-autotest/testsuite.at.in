@@ -10,6 +10,75 @@ AT_CLEANUP()
 
 
 
+AT_SETUP(Self-Test Debug Output)
+dnl      ----------------------
+
+AT_CHECK([java -jar $abs_top_builddir/convjars/csvpipe.jar -x], 0,[key1:key2:key3,test 1,test 2,test 3
+3.000000,2,3,4
+3.000000,4,5,6
+4.000000,7,8,9
+4.000000,a,b,c
+key1:key2:key3,test 1,test 2,test 3
+3.000000,2,3,4
+3.000000,4,5,6
+4.000000,7,8,9
+4.000000,a,b,c
+Loss of Sync Events:Loss of Signal Events:Link Resets,test 1,test 2,test 3
+3.000000,2,3,4
+3.000000,4,5,6
+4.000000,7,8,9
+4.000000,a,b,c
+key,Min test 2,Ave test 2,Max test 2,test 3,test 4,test 5,test 6,test 7,test 8,test 9
+1,1.0,2.3333333,4.0,3,4,5,6,7,8,9
+2,2.0,3.0,4.0,3,4,5,6,7,8,9
+3,1.0,1.0,1.0,3,4,5,6,7,8,9
+key,Min test 2,Ave test 2,Max test 2,test 3,test 4,test 5,test 6,test 7,test 8,test 9
+1,1.0,2.3333333,4.0,3,4,5,6,7,8,9
+2,2.0,3.0,4.0,3,4,5,6,7,8,9
+3,1.0,1.0,1.0,3,4,5,6,7,8,9
+key,wedge,Min test 2,Ave test 2,Max test 2,test 3,test 4,test 5,test 6,test 7,test 8,test 9
+1,2,1.0,2.3333333,4.0,3,4,5,6,7,8,9
+2,3,2.0,3.0,4.0,3,4,5,6,7,8,9
+3,3,1.0,1.0,1.0,3,4,5,6,7,8,9
+wedge,key,Min test 2,Ave test 2,Max test 2,test 3,test 4,test 5,test 6,test 7,test 8,test 9
+1,1,2.0,3.0,4.0,3,4,5,6,7,8,9
+2,2,1.0,1.5,2.0,3,4,5,6,7,8,9
+3,3,1.0,2.5,4.0,3,4,5,6,7,8,9
+key,key,Min test 2,Ave test 2,Max test 2,test 3,test 4,test 5,test 6,test 7,test 8,test 9
+1,1,2.0,3.0,4.0,3,4,5,6,7,8,9
+1,2,1.0,1.0,1.0,3,4,5,6,7,8,9
+2,2,2.0,2.0,2.0,3,4,5,6,7,8,9
+2,3,4.0,4.0,4.0,3,4,5,6,7,8,9
+3,3,1.0,1.0,1.0,3,4,5,6,7,8,9
+key,test 2,Time (ms) Year,Time (ms) Month,Time (ms) Day,test 4,test 5,test 6,test 7,test 8,test 9
+1,2,2013,Jan,28,4,5,6,7,8,9
+1,4,2012,Oct,25,4,5,6,7,8,9
+1,1,2013,Jan,28,4,5,6,7,8,9
+2,2,2013,Jan,28,4,5,6,7,8,9
+key,test 2,Time (ms) Year,Time (ms) Month,Time (ms) Day,Time (ms) Hour,test 4,test 5,test 6,test 7,test 8,test 9
+1,2,2013,Jan,28,04,4,5,6,7,8,9
+1,4,2012,Oct,25,12,4,5,6,7,8,9
+1,1,2013,Jan,28,06,4,5,6,7,8,9
+2,2,2013,Jan,28,07,4,5,6,7,8,9
+key,test 2,Time (ms) Year-Month,test 4,test 5,test 6,test 7,test 8,test 9
+1,2,2013-00,4,5,6,7,8,9
+1,4,2012-00,4,5,6,7,8,9
+1,1,2013-00,4,5,6,7,8,9
+2,2,2013-00,4,5,6,7,8,9
+key,Loss of Sync Events:Loss of Signal Events:Link Resets:Link Failures:CRC Errors:Class 3 Discards,Time (ms) Year,Time (ms) Month,Time (ms) Day,Time (ms) Hour
+10000000c9123456,4.000000,2013,Jan,28,04
+10000000c9123457,0.000000,2012,Oct,25,12
+Port Number,Port Module Number,Attached Port WWN,Attached Port Name,Attached Device Type,Channel,Fabric,Environment,Probe Serial Number,Probe Name,Min Frame / Sec,Ave Frame / Sec,Max Frame / Sec,Total Capacity %,Zero Buffer-to-Buffer Credit Information,Date/Time,Time (ms) Year,Time (ms) Month,Time (ms) Day,Time (ms) Week
+2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0.0,0.0,0.0,0,0,Fri Feb 01 23:00:00 PST 2013,2013,Feb,1,5
+2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0.0,0.0,0.0,0,0,Mon Feb 04 04:00:00 PST 2013,2013,Feb,4,6
+Port Number,Port Module Number,Attached Port WWN,Attached Port Name,Attached Device Type,Channel,Fabric,Environment,Probe Serial Number,Probe Name,Frame / Sec,% Utilization,Zero Buffer-to-Buffer Credit Information,Date/Time,Time (ms)
+2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Fri Feb 01 16:00:00 PST 2013,1359763200000
+],[])
+
+AT_CLEANUP()
+
+
+
 AT_SETUP(Doxygen confirmation of marked-up content)
 dnl      -----------------------------------------
 

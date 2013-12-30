@@ -168,7 +168,9 @@ public class CSVPipe
         TEST_SUMMARIZE_2	/**< build a test page: summarize the second column as min/max/avg by name */	,
         TEST_SUMMARIZE_3	/**< build a test page: summarize the column named "test 2" as min/max/avg by name keyed by column "key" */	,
         TEST_EPOCH_YMD_1	/**< build a test page: expand the time value into Year/Month/Day */	,
-        TEST_EPOCH_YMDH_1	/**< build a test page: expand the time value into Year/Month/Day/Hour */
+        TEST_EPOCH_YMDH_1	/**< build a test page: expand the time value into Year/Month/Day/Hour */	,
+        TEST_EPOCH_YM_1		/**< build a test page: expand the time value into single Year-Month */		,
+	TEST_HEADERNOCAP_1	/**< build a test page: replace the "Capacity %" with "% Utilization" */
     };
 
     protected RowPrinter getPreset (PRESET p)
@@ -220,6 +222,12 @@ public class CSVPipe
             erp = new EpochExpanderRowPrinter(f, "Year,Month,Day,Hour".split(","));
             erp.expand("Time (ms)");
             return erp;
+        case TEST_EPOCH_YM_1:	/* build a test page: expand the time value into Year/Month/Day/Hour */
+            f = new java.util.Vector<java.text.SimpleDateFormat>();
+            f.add(new java.text.SimpleDateFormat("yyyy-mm"));
+            erp = new EpochExpanderRowPrinter(f, "Year-Month".split(","));
+            erp.expand("Time (ms)");
+            return erp;
 
         case HEALTH_PHYS_1:
             rp = new DocSheetRowPrinter(getSheet("data.Health.Phys"));
@@ -232,6 +240,8 @@ public class CSVPipe
             cgrp = new ColumnGroupingRowPrinter(erp);
             cgrp.groupKeys("Loss of Sync Events,Loss of Signal Events,Link Resets,Link Failures,CRC Errors,Class 3 Discards".split(","));
             return cgrp;
+        case TEST_HEADERNOCAP_1:
+	    return new NoCapHeader();
         case UTIL_YMDH_1:
             df = EpochExpanderRowPrinter.defaultFormatters();
             df.add(new java.text.SimpleDateFormat("hh"));
@@ -354,6 +364,14 @@ public class CSVPipe
         getRowPrinter().printDataRow("2,2,1359428400000,4,5,6,7,8,9".split(","));	/* Mon Jan 28 19:00:00 PST 2013 */
         getRowPrinter().printFooterRow();
 
+        rowPrinter = getPreset (PRESET.TEST_EPOCH_YM_1);
+        getRowPrinter().printHeaderRow("key,test 2,Time (ms),test 4,test 5,test 6,test 7,test 8,test 9".split(","));
+        getRowPrinter().printDataRow("1,2,1359417600000,4,5,6,7,8,9".split(","));	/* Mon Jan 28 16:00:00 PST 2013 */
+        getRowPrinter().printDataRow("1,4,1351148400000,4,5,6,7,8,9".split(","));	/* ??? Oct 25 ??:00:00 PST 2012 */
+        getRowPrinter().printDataRow("1,1,1359424800000,4,5,6,7,8,9".split(","));	/* Mon Jan 28 18:00:00 PST 2013 */
+        getRowPrinter().printDataRow("2,2,1359428400000,4,5,6,7,8,9".split(","));	/* Mon Jan 28 19:00:00 PST 2013 */
+        getRowPrinter().printFooterRow();
+
         rowPrinter = getPreset (PRESET.TEST_HEALTH_PHYS_1);
         getRowPrinter().printHeaderRow("key,Loss of Sync Events,Loss of Signal Events,Link Resets,Link Failures,CRC Errors,Class 3 Discards,Time (ms)".split(","));
         getRowPrinter().printDataRow("10000000c9123456,0,0,1,0,0,3,1359417600000".split(","));	/* Mon Jan 28 16:00:00 PST 2013 */
@@ -379,6 +397,11 @@ public class CSVPipe
         getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Mon Feb 04 02:00:00 PST 2013,1359972000000".split(","));
         getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Mon Feb 04 03:00:00 PST 2013,1359975600000".split(","));
         getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Mon Feb 04 04:00:00 PST 2013,1359979200000".split(","));
+        getRowPrinter().printFooterRow();
+
+        rowPrinter = getPreset (PRESET.TEST_HEADERNOCAP_1);
+        getRowPrinter().printHeaderRow("Port Number,Port Module Number,Attached Port WWN,Attached Port Name,Attached Device Type,Channel,Fabric,Environment,Probe Serial Number,Probe Name,Frame / Sec,Total Capacity %,Zero Buffer-to-Buffer Credit Information,Date/Time,Time (ms)".split(","));
+        getRowPrinter().printDataRow("2,N/A,10000000c9123456,0x280200,Server,Ch 1,WestDC FAB B,WestDC,1978178686,WestDC-SW12-B,0,0,0,Fri Feb 01 16:00:00 PST 2013,1359763200000".split(","));
         getRowPrinter().printFooterRow();
 
     }

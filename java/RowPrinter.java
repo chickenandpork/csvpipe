@@ -4,21 +4,7 @@ package org.smallfoot.csv;
  * @file
  */
 
-//import java.io.FileOutputStream;
-//import org.apache.poi.ss.usermodel.WorkbookFactory;
-//import org.apache.poi.ss.usermodel.CreationHelper;
-//import org.apache.poi.ss.util.CellRangeAddress;
-//import org.apache.poi.xssf.usermodel.*;
-//import org.apache.poi.ss.usermodel.*;
-
-//import javax.activation.DataSource;
-//import javax.activation.URLDataSource;
-//import java.io.BufferedReader;
-//import java.io.FileInputStream;
-//import java.io.FileReader;
-//import java.io.InputStreamReader;
-//import java.io.OutputStream;
-//import java.util.Vector;
+import java.util.Properties;
 
 
 /**
@@ -47,7 +33,7 @@ public abstract class RowPrinter
     abstract public void printDataRow (String[] columns);
     abstract public void printFooterRow ();
 
-    java.util.Properties _prop = null;
+    Properties _prop = null;
     boolean checkProperty(String n)
     {
         if (null == _prop) _prop = System.getProperties();
