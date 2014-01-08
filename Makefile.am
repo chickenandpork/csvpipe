@@ -35,7 +35,7 @@ endif DO_GITFORMATTING
 endif DO_ASTYLE
 
 if DO_GITFORMATTING
-gitdescribe: .git/ORIG_HEAD
+gitdescribe: .git/HEAD
 	git describe > $@
 endif DO_GITFORMATTING
 
