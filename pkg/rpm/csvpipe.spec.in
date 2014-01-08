@@ -33,7 +33,6 @@ Tool to process CSV from one form to another
 %install
 make install DESTDIR=%{buildroot}
 rm %{buildroot}/%{_datadir}/@PACKAGE@/java.class
-rm %{buildroot}/%{_datadir}/@PACKAGE@/java.jar
 rm -fr %{buildroot}/%{_datadir}/@PACKAGE@/jars
 
 %clean
