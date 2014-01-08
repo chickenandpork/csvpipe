@@ -224,7 +224,7 @@ public class CSVPipe
             return erp;
         case TEST_EPOCH_YM_1:	/* build a test page: expand the time value into Year/Month/Day/Hour */
             f = new java.util.Vector<java.text.SimpleDateFormat>();
-            f.add(new java.text.SimpleDateFormat("yyyy-mm"));
+            f.add(new java.text.SimpleDateFormat("yyyy-MM"));
             erp = new EpochExpanderRowPrinter(f, "Year-Month".split(","));
             erp.expand("Time (ms)");
             return erp;
