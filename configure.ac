@@ -20,7 +20,7 @@ AC_PROG_MAKE_SET
 
 AC_SUBST(AUTOM4TE, autom4te)
 
-SVN_CHECK_JDK([1.6.0])
+SVN_CHECK_JDK([1.6],[1.6])
 AM_CONDITIONAL(DO_JAVA, test "$JAVAC" != none)
 
 dnl ***********************************************************************
@@ -145,6 +145,22 @@ AC_MSG_RESULT([${WITH_GETOPTJAR}])
 ])
 AM_CONDITIONAL(DO_GETOPTJAR, test "$WITH_GETOPTJAR" != no)
 AC_SUBST([GETOPTJAR], ${WITH_GETOPTJAR})
+
+
+
+AC_ARG_WITH(sudopostmove,
+[AS_HELP_STRING([--with-sudopostmove],[Enable sudopostmove of a built RPM; default=disabled])],
+[
+    case "$withval" in
+        "no")  WITH_SUDOPOSTMOVE=no  ;;
+        *) WITH_SUDOPOSTMOVE="$withval" ;;
+    esac
+],
+[
+    WITH_SUDOPOSTMOVE=no
+])
+AM_CONDITIONAL(DO_SUDOPOSTMOVE, test "$WITH_SUDOPOSTMOVE" != no)
+AC_SUBST([SUDOPOSTMOVE], ${WITH_SUDOPOSTMOVE})
 
 
 

@@ -48,3 +48,7 @@ commons-io-2.3-bin.tar.gz:
 check-local: $(JARS)
 	for i in $<; do jar tf $$i >/dev/null || exit 1; done
 
+clean-local:
+	rm -f commons-io-2.3-bin.tar.gz poi-bin-3.8-20120326.tar.gz
+
+
