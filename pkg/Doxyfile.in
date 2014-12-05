@@ -701,9 +701,9 @@ EXCLUDE_SYMLINKS       = NO
 # for example use the pattern */test/*
 
 EXCLUDE_PATTERNS       = */.workdir/* \
+                         */.git/* \
                          */.svn/* \
-                         */win32/* \
-                         */nginx-1.0.6/*
+                         */win32/*
 
 
 # The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
